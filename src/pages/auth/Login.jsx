@@ -103,20 +103,7 @@ const Login = () => {
             />
           </div>
 
-          <div className="mb-4">
-            <label className="form-label fw-semibold">Select Role</label>
-            <select
-              className="form-select"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-            >
-              <option value="ADMIN">Admin</option>
-              <option value="TRAINER">Trainer</option>
-              <option value="ANALYST">Analyst</option>
-              <option value="COUNSELOR">Counselor</option>
-            </select>
-          </div>
+          
 
           <button
             type="submit"
