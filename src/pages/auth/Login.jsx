@@ -1,8 +1,7 @@
-
 import React, { useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import 'bootstrap/dist/css/bootstrap.min.css';
+import { useNavigate, Link } from "react-router-dom";
+import "bootstrap/dist/css/bootstrap.min.css";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -22,71 +21,90 @@ const Login = () => {
     });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = (e) => {
+  e.preventDefault();
 
-    try {
-      const response = await axios.post(
-        "http://localhost:8080/api/auth/login",
-        formData
-      );
+  const storedAdmin = JSON.parse(localStorage.getItem("admin"));
 
-      const { token, role } = response.data;
+  if (!storedAdmin) {
+    setError("Admin not initialized.");
+    return;
+  }
 
-      localStorage.setItem("token", token);
-      localStorage.setItem("role", role);
+  if (
+    formData.email === storedAdmin.email &&
+    formData.password === storedAdmin.password &&
+    formData.role === "ADMIN"
+  ) {
+    // Save login status
+    localStorage.setItem("isLoggedIn", "true");
+    localStorage.setItem("role", "ADMIN");
 
-      // Redirect based on role
-      if (role === "ADMIN") navigate("/admin");
-      else if (role === "TRAINER") navigate("/trainer");
-      else if (role === "ANALYST") navigate("/analyst");
-      else if (role === "COUNSELOR") navigate("/counselor");
+    navigate("/admin");
+  } else {
+    setError("Invalid credentials or role");
+  }
+};
 
-    } catch (err) {
-      setError(
-        err.response?.data?.message || "Invalid credentials or role"
-      );
-    }
-  };
 
   return (
-    <div className="container vh-100 d-flex justify-content-center align-items-center">
-      <div className="card shadow p-4" style={{ width: "400px" }}>
-        <h3 className="text-center mb-4">Login</h3>
+    <div
+      className="vh-100 d-flex justify-content-center align-items-center"
+      style={{
+        background: "linear-gradient(135deg, #0d1b2a, #1b263b)",
+      }}
+    >
+      <div
+        className="card shadow-lg border-0 p-4"
+        style={{
+          width: "100%",
+          maxWidth: "420px",
+          borderRadius: "15px",
+        }}
+      >
+        {/* Header */}
+        <div className="text-center mb-4">
+          <h2 className="fw-bold text-primary">CrewSync</h2>
+          <p className="text-muted">Employee Management Login</p>
+        </div>
 
+        {/* Error */}
         {error && (
-          <div className="alert alert-danger text-center">
+          <div className="alert alert-danger text-center py-2">
             {error}
           </div>
         )}
 
+        {/* Form */}
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
-            <label className="form-label">Email</label>
+            <label className="form-label fw-semibold">Email Address</label>
             <input
               type="email"
               className="form-control"
               name="email"
               value={formData.email}
               onChange={handleChange}
+              placeholder="Enter your email"
               required
             />
           </div>
 
           <div className="mb-3">
-            <label className="form-label">Password</label>
+            <label className="form-label fw-semibold">Password</label>
             <input
               type="password"
               className="form-control"
               name="password"
               value={formData.password}
               onChange={handleChange}
+              placeholder="Enter your password"
               required
             />
           </div>
 
-          <div className="mb-3">
-            <label className="form-label">Select Role</label>
+          <div className="mb-4">
+            <label className="form-label fw-semibold">Select Role</label>
             <select
               className="form-select"
               name="role"
@@ -100,10 +118,22 @@ const Login = () => {
             </select>
           </div>
 
-          <button type="submit" className="btn btn-primary w-100">
+          <button
+            type="submit"
+            className="btn btn-primary w-100 py-2 fw-bold"
+          >
             Login
           </button>
         </form>
+
+        {/* Back to Home */}
+        <div className="text-center mt-3">
+          <small>
+            <Link to="/" className="text-decoration-none">
+              ← Back to Home
+            </Link>
+          </small>
+        </div>
       </div>
     </div>
   );
