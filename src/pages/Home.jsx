@@ -16,9 +16,6 @@ const Home = () => {
             <Link to="/login" className="btn btn-outline-light me-2">
               Login
             </Link>
-            <Link to="/register" className="btn btn-primary">
-              Register
-            </Link>
           </div>
         </div>
       </nav>
