@@ -181,6 +181,7 @@ const AdminDashboard = () => {
         {/* Enhanced Dashboard Stats */}
         {activeTab === "dashboard" && (
           <div>
+
             <h4 className="fw-bold mb-4" style={{ color: "#0d1b2a" }}>Dashboard Overview</h4>
             <div className="row g-4">
               <div className="col-md-3">
@@ -201,6 +202,8 @@ const AdminDashboard = () => {
                   </div>
                 </div>
               </div>
+
+              
               
               <div className="col-md-3">
                 <div 
@@ -256,11 +259,86 @@ const AdminDashboard = () => {
                     </div>
                     <i className="bi bi-chat-heart fs-1 text-white-50"></i>
                   </div>
+
+                  
+                  
                 </div>
               </div>
             </div>
+            {/* Employee List Section */}
+<div className="card border-0 shadow-sm mt-4">
+  <div className="card-header bg-white border-0 py-3">
+    <h6 className="fw-bold mb-0">All Employees</h6>
+  </div>
+
+  <div className="card-body p-0">
+    <div className="table-responsive">
+      <table className="table table-hover align-middle mb-0">
+        <thead className="bg-light">
+          <tr>
+            <th className="py-3">Name</th>
+            <th className="py-3">Email</th>
+            <th className="py-3">Designation</th>
+            <th className="py-3">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.length > 0 ? (
+            users.map((user) => (
+              <tr key={user.id}>
+                <td className="py-3 fw-semibold">
+                  {user.name}
+                </td>
+
+                <td className="py-3">
+                  {user.email}
+                </td>
+
+                <td className="py-3">
+                  <span
+                    className={`badge ${
+                      user.role === "ADMIN"
+                        ? "bg-danger"
+                        : user.role === "TRAINER"
+                        ? "bg-primary"
+                        : user.role === "ANALYST"
+                        ? "bg-success"
+                        : "bg-warning"
+                    }`}
+                  >
+                    {user.role}
+                  </span>
+                </td>
+
+                <td className="py-3">
+                  <span
+                    className={`badge ${
+                      user.status === "Active"
+                        ? "bg-success"
+                        : "bg-secondary"
+                    }`}
+                  >
+                    {user.status}
+                  </span>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="4" className="text-center py-4 text-muted">
+                No employees found
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
           </div>
         )}
+        
 
         {/* Enhanced ROLE MANAGEMENT */}
         {(activeTab === "trainer" || activeTab === "analyst" || activeTab === "counselor") && (
