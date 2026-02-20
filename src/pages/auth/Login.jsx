@@ -40,7 +40,7 @@ const Login = () => {
     localStorage.setItem("isLoggedIn", "true");
     localStorage.setItem("role", "ADMIN");
 
-    navigate("/admin");
+    navigate("/admindashboard");
   } else {
     setError("Invalid credentials or role");
   }

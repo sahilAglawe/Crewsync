@@ -5,6 +5,7 @@ import Home from './pages/Home.jsx'
 import Login from './pages/auth/login.jsx'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import 'bootstrap/dist/css/bootstrap.min.css';
+import AdminDashboard from './admin/AdminDashboard.jsx';
 
 function App() {
  
@@ -23,6 +24,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/admindashboard" element={<AdminDashboard />} />
       </Routes>
     </BrowserRouter>
     </>
