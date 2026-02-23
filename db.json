@@ -1,0 +1,32 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "name": "Jane Smith",
+      "email": "jane@example.com",
+      "role": "TRAINER",
+      "status": "Active"
+    },
+    {
+      "id": "2",
+      "name": "Mike Johnson",
+      "email": "mike@example.com",
+      "role": "ANALYST",
+      "status": "Active"
+    },
+    {
+      "id": "3",
+      "name": "Sarah Wilson",
+      "email": "sarah@example.com",
+      "role": "COUNSELOR",
+      "status": "Inactive"
+    },
+    {
+      "id": "d3a0",
+      "name": "mahesh chine",
+      "email": "sahilaglawe66@gmail.com",
+      "role": "TRAINER",
+      "status": "Active"
+    }
+  ]
+}

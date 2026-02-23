@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
+import axios from "axios";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -22,17 +23,16 @@ const AdminDashboard = () => {
 
   const [editingUser, setEditingUser] = useState(null);
 
-  // Mock Initial Data
-  useEffect(() => {
-    const mockUsers = [
-      { id: 1, name: "Jane Smith", email: "jane@example.com", role: "TRAINER", status: "Active" },
-      { id: 2, name: "Mike Johnson", email: "mike@example.com", role: "ANALYST", status: "Active" },
-      { id: 3, name: "Sarah Wilson", email: "sarah@example.com", role: "COUNSELOR", status: "Inactive" },
-    ];
-
-    setUsers(mockUsers);
-    updateStats(mockUsers);
-  }, []);
+ useEffect(() => {
+  axios.get("http://localhost:5000/users")
+    .then(response => {
+      setUsers(response.data);
+      updateStats(response.data);
+    })
+    .catch(error => {
+      console.error("Error fetching users:", error);
+    });
+}, []);
 
   
   // Update Stats
@@ -45,63 +45,88 @@ const AdminDashboard = () => {
     });
   };
 
+
   // Add User
   const handleAddUser = (role) => {
-    if (!newUser.name || !newUser.email) {
-      alert("Please fill all fields");
-      return;
-    }
+  if (!newUser.name || !newUser.email) {
+    alert("Please fill all fields");
+    return;
+  }
 
-    const newEntry = {
-      id: Date.now(),
-      name: newUser.name,
-      email: newUser.email,
-      role,
-      status: newUser.status,
-    };
-
-    const updatedUsers = [...users, newEntry];
-    setUsers(updatedUsers);
-    updateStats(updatedUsers);
-    setNewUser({ name: "", email: "", status: "Active" });
+  const newEntry = {
+    name: newUser.name,
+    email: newUser.email,
+    role,
+    status: newUser.status,
   };
 
-  // Delete
+  axios.post("http://localhost:5000/users", newEntry)
+    .then(response => {
+      const updatedUsers = [...users, response.data];
+      setUsers(updatedUsers);
+      updateStats(updatedUsers);
+      setNewUser({ name: "", email: "", status: "Active" });
+    })
+    .catch(error => {
+      console.error("Error adding user:", error);
+    });
+};
+
+// Delete User
   const handleDelete = (id) => {
-    const updatedUsers = users.filter(user => user.id !== id);
-    setUsers(updatedUsers);
-    updateStats(updatedUsers);
+  axios.delete(`http://localhost:5000/users/${id}`)
+    .then(() => {
+      const updatedUsers = users.filter(user => user.id !== id);
+      setUsers(updatedUsers);
+      updateStats(updatedUsers);
+    })
+    .catch(error => {
+      console.error("Error deleting user:", error);
+    });
+};
+
+// Edit User
+const handleUpdate = () => {
+  const updatedData = {
+    ...editingUser,
+    ...newUser,
   };
 
-  // Edit
-  const handleEdit = (user) => {
-    setEditingUser(user);
-    setNewUser(user);
-  };
+  axios.put(
+    `http://localhost:5000/users/${editingUser.id}`,
+    updatedData
+  )
+    .then(response => {
+      const updatedUsers = users.map(user =>
+        user.id === response.data.id ? response.data : user
+      );
 
-  // Update
-  const handleUpdate = () => {
-    const updatedUsers = users.map(user =>
-      user.id === editingUser.id ? { ...user, ...newUser } : user
-    );
-    setUsers(updatedUsers);
-    updateStats(updatedUsers);
-    setEditingUser(null);
-    setNewUser({ name: "", email: "", status: "Active" });
-  };
+      setUsers(updatedUsers);
+      updateStats(updatedUsers);
+      setEditingUser(null);
+      setNewUser({ name: "", email: "", status: "Active" });
+    })
+    .catch(error => {
+      console.error("Error updating user:", error);
+    });
+};
 
   // View
   const handleView = (user) => {
-    alert(`Name: ${user.name}\nEmail: ${user.email}\nRole: ${user.role}\nStatus: ${user.status}`);
-  };
+  axios.get(`http://localhost:5000/users/${user.id}`)
+    .then(response => {
+      const data = response.data;
+      alert(`Name: ${data.name}
+Email: ${data.email}
+Role: ${data.role}
+Status: ${data.status}`);
+    })
+    .catch(error => {
+      console.error("Error fetching user:", error);
+    });
+};
 
-  const handleLogout = () => {
-    if (window.confirm("Are you sure you want to logout?")) {
-      localStorage.removeItem("isLoggedIn");
-      localStorage.removeItem("role");
-      navigate("/login");
-    }
-  };
+const handleLogout = () => { if (window.confirm("Are you sure you want to logout?")) { localStorage.removeItem("isLoggedIn"); localStorage.removeItem("role"); navigate("/login"); } };
 
   return (
     <div className="d-flex" style={{ minHeight: "100vh", background: "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)" }}>
@@ -456,12 +481,12 @@ const AdminDashboard = () => {
                           </button>
                           <button 
                             className="btn btn-sm btn-warning text-white me-2"
-                            onClick={() => handleEdit(user)}
+                            onClick={() => handleUpdate(user)}
                             style={{ borderRadius: "8px" }}
                           >
                             <i className="bi bi-pencil-fill"></i>
                           </button>
-                          <button 
+                          <button
                             className="btn btn-sm btn-danger text-white"
                             onClick={() => handleDelete(user.id)}
                             style={{ borderRadius: "8px" }}
