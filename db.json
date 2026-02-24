@@ -22,11 +22,24 @@
       "status": "Inactive"
     },
     {
-      "id": "d3a0",
+      "id": 1771909973732,
       "name": "mahesh chine",
       "email": "sahilaglawe66@gmail.com",
-      "role": "TRAINER",
-      "status": "Active"
+      "phone": "08767945573",
+      "specialization": "cse",
+      "experience": "0-1",
+      "qualification": "btech",
+      "certifications": "oracle",
+      "languages": "marathi",
+      "availability": "Full-time",
+      "status": "Active",
+      "trainingModules": "",
+      "batchSize": "",
+      "toolsKnown": "",
+      "reportTypes": "",
+      "counselingAreas": "",
+      "sessionTypes": "",
+      "role": "TRAINER"
     }
   ]
 }
