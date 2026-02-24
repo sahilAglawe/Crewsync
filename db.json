@@ -12,7 +12,8 @@
       "name": "Mike Johnson",
       "email": "mike@example.com",
       "role": "ANALYST",
-      "status": "Active"
+      "status": "Active",
+      "experience": "0-1"
     },
     {
       "id": "3",
