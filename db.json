@@ -100,5 +100,52 @@
       "tools": "",
       "analysisType": ""
     }
+  ],
+  "batches": [
+    {
+      "id": "1772097136292",
+      "batchName": "BTO6",
+      "course": "java full stack",
+      "trainer": "vaibhav",
+      "startDate": "2026-02-26",
+      "endDate": "2026-03-12",
+      "maxStudents": "25",
+      "mode": "Online",
+      "status": "Ongoing",
+      "studentsEnrolled": 0,
+      "createdAt": "2026-02-26T09:12:16.292Z",
+      "createdBy": "vijay",
+      "createdById": "1772089388234"
+    },
+    {
+      "id": "1772098115780",
+      "batchName": "BT05",
+      "course": "python",
+      "trainer": "mahesh sir",
+      "startDate": "2026-02-26",
+      "endDate": "2026-03-14",
+      "maxStudents": "25",
+      "mode": "Offline",
+      "status": "Completed",
+      "studentsEnrolled": 0,
+      "createdAt": "2026-02-26T09:28:35.780Z",
+      "createdBy": "vijay",
+      "createdById": "1772089388234"
+    },
+    {
+      "id": "1772098212196",
+      "batchName": "BT02",
+      "course": "Data science",
+      "trainer": "shrikant sir",
+      "startDate": "2026-02-26",
+      "endDate": "2026-03-14",
+      "maxStudents": "25",
+      "mode": "Hybrid",
+      "status": "Upcoming",
+      "studentsEnrolled": 0,
+      "createdAt": "2026-02-26T09:30:12.196Z",
+      "createdBy": "vijay",
+      "createdById": "1772089388234"
+    }
   ]
 }
