@@ -237,30 +237,9 @@ const Login = () => {
           </button>
         </form>
 
-        {/* Help buttons */}
-        <div className="d-flex gap-2 mt-3">
-          <button
-            onClick={fetchUsers}
-            className="btn btn-outline-secondary btn-sm flex-grow-1"
-            disabled={loading}
-          >
-            Refresh Users
-          </button>
-          <button
-            onClick={showAvailableUsers}
-            className="btn btn-outline-info btn-sm flex-grow-1"
-            disabled={loading || users.length === 0}
-          >
-            Show Available Users
-          </button>
-        </div>
+        
 
-        {/* Demo credentials hint */}
-        {users.length > 0 && (
-          <div className="alert alert-info mt-3 mb-0 py-2 small">
-            <strong>Demo credentials:</strong> Use any email from the list with matching role
-          </div>
-        )}
+        
 
         {/* Back to Home */}
         <div className="text-center mt-3">
