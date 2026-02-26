@@ -6,6 +6,7 @@ import Login from './pages/auth/login.jsx'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import 'bootstrap/dist/css/bootstrap.min.css';
 import AdminDashboard from './admin/AdminDashboard.jsx';
+import AnalystDashboard from './analyst/analystDashboard.jsx';
 
 function App() {
  
@@ -25,6 +26,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/admindashboard" element={<AdminDashboard />} />
+        <Route path="/analystdashboard" element={<AnalystDashboard />} />
       </Routes>
     </BrowserRouter>
     </>

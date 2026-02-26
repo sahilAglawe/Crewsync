@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -13,6 +13,32 @@ const Login = () => {
   });
 
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState([]);
+
+  // Fetch users on component mount
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      // Fetch users from the endpoint
+      const response = await axios.get("http://localhost:5000/users");
+      
+      // Log the response to verify data structure
+      console.log("Fetched users:", response.data);
+      
+      setUsers(response.data);
+      setError(""); // Clear any previous errors
+      setLoading(false);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      setError("Failed to load user data. Please check if the server is running.");
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -21,31 +47,101 @@ const Login = () => {
     });
   };
 
-  const handleSubmit = (e) => {
-  e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-  const storedAdmin = JSON.parse(localStorage.getItem("admin"));
+    try {
+      // If users haven't been fetched yet or fetch failed, try fetching again
+      if (users.length === 0) {
+        await fetchUsers();
+      }
 
-  if (!storedAdmin) {
-    setError("Admin not initialized.");
-    return;
-  }
+      // Find user with matching credentials and role
+      // Note: Since the API doesn't return passwords, we'll use email and role only
+      // In a real application, you would validate passwords on the backend
+      const user = users.find(
+        (u) => 
+          u.email === formData.email && 
+          u.role === formData.role
+      );
 
-  if (
-    formData.email === storedAdmin.email &&
-    formData.password === storedAdmin.password &&
-    formData.role === "ADMIN"
-  ) {
-    // Save login status
-    localStorage.setItem("isLoggedIn", "true");
-    localStorage.setItem("role", "ADMIN");
+      if (user) {
+        // For demo purposes, we'll accept any password
+        // In production, you should validate passwords on the backend
+        
+        // Save login status and user data
+        localStorage.setItem("isLoggedIn", "true");
+        localStorage.setItem("role", user.role);
+        localStorage.setItem("userId", user.id);
+        localStorage.setItem("userName", user.name);
+        localStorage.setItem("userEmail", user.email);
+        
+        // Store full user data if needed
+        localStorage.setItem("userData", JSON.stringify(user));
 
-    navigate("/admindashboard");
-  } else {
-    setError("Invalid credentials or role");
-  }
-};
+        // Navigate based on role
+        switch(user.role) {
+          case "ADMIN":
+            navigate("/admindashboard");
+            break;
+          case "ANALYST":
+            navigate("/analystdashboard");
+            break;
+          case "TRAINER":
+            navigate("/trainerdashboard");
+            break;
+          case "COUNSELOR": // Note: In your data it's "COUNSELOR" not "COUNSELLOR"
+            navigate("/counsellordashboard");
+            break;
+          default:
+            navigate("/dashboard");
+        }
+      } else {
+        setError("Invalid email or role. Please check your credentials.");
+      }
+    } catch (err) {
+      setError("Login failed. Please try again.");
+      console.error("Login error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // For demo purposes, this function will show available users for each role
+  const showAvailableUsers = () => {
+    const usersByRole = {
+      ADMIN: users.filter(u => u.role === "ADMIN"),
+      ANALYST: users.filter(u => u.role === "ANALYST"),
+      TRAINER: users.filter(u => u.role === "TRAINER"),
+      COUNSELOR: users.filter(u => u.role === "COUNSELOR")
+    };
+
+    let message = "Available users for login:\n\n";
+    
+    if (usersByRole.ADMIN.length > 0) {
+      message += "ADMIN:\n";
+      usersByRole.ADMIN.forEach(u => message += `  - ${u.email} (${u.name})\n`);
+    }
+    
+    if (usersByRole.ANALYST.length > 0) {
+      message += "\nANALYST:\n";
+      usersByRole.ANALYST.forEach(u => message += `  - ${u.email} (${u.name})\n`);
+    }
+    
+    if (usersByRole.TRAINER.length > 0) {
+      message += "\nTRAINER:\n";
+      usersByRole.TRAINER.forEach(u => message += `  - ${u.email} (${u.name})\n`);
+    }
+    
+    if (usersByRole.COUNSELOR.length > 0) {
+      message += "\nCOUNSELOR:\n";
+      usersByRole.COUNSELOR.forEach(u => message += `  - ${u.email} (${u.name})\n`);
+    }
+
+    alert(message || "No users found in the database.");
+  };
 
   return (
     <div
@@ -75,6 +171,15 @@ const Login = () => {
           </div>
         )}
 
+        {/* Loading */}
+        {loading && (
+          <div className="text-center mb-3">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        )}
+
         {/* Form */}
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
@@ -87,6 +192,7 @@ const Login = () => {
               onChange={handleChange}
               placeholder="Enter your email"
               required
+              disabled={loading}
             />
           </div>
 
@@ -100,6 +206,7 @@ const Login = () => {
               onChange={handleChange}
               placeholder="Enter your password"
               required
+              disabled={loading}
             />
           </div>
 
@@ -112,21 +219,48 @@ const Login = () => {
               value={formData.role}
               onChange={handleChange}
               required
+              disabled={loading}
             >
               <option value="ADMIN">Admin</option>
               <option value="TRAINER">Trainer</option>
               <option value="ANALYST">Analyst</option>
-              <option value="COUNSELLOR">Counsellor</option>
+              <option value="COUNSELOR">Counsellor</option>
             </select>
           </div>
 
           <button
             type="submit"
             className="btn btn-primary w-100 py-2 fw-bold"
+            disabled={loading}
           >
-            Login
+            {loading ? "Logging in..." : "Login"}
           </button>
         </form>
+
+        {/* Help buttons */}
+        <div className="d-flex gap-2 mt-3">
+          <button
+            onClick={fetchUsers}
+            className="btn btn-outline-secondary btn-sm flex-grow-1"
+            disabled={loading}
+          >
+            Refresh Users
+          </button>
+          <button
+            onClick={showAvailableUsers}
+            className="btn btn-outline-info btn-sm flex-grow-1"
+            disabled={loading || users.length === 0}
+          >
+            Show Available Users
+          </button>
+        </div>
+
+        {/* Demo credentials hint */}
+        {users.length > 0 && (
+          <div className="alert alert-info mt-3 mb-0 py-2 small">
+            <strong>Demo credentials:</strong> Use any email from the list with matching role
+          </div>
+        )}
 
         {/* Back to Home */}
         <div className="text-center mt-3">

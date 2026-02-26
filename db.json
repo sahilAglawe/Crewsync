@@ -86,6 +86,19 @@
       "role": "COUNSELOR",
       "specialties": "",
       "sessionMode": ""
+    },
+    {
+      "id": 1772089388234,
+      "name": "vijay",
+      "email": "vijay@gmail.com",
+      "phone": "4444455555",
+      "password": "vijay123",
+      "status": "Active",
+      "joiningDate": "2026-02-26",
+      "salary": "10000",
+      "role": "ANALYST",
+      "tools": "",
+      "analysisType": ""
     }
   ]
 }
