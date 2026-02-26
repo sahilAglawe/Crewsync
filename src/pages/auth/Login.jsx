@@ -103,7 +103,22 @@ const Login = () => {
             />
           </div>
 
-          
+          {/* Role Selection */}
+          <div className="mb-3">
+            <label className="form-label fw-semibold">Select Role</label>
+            <select
+              className="form-select"
+              name="role"
+              value={formData.role}
+              onChange={handleChange}
+              required
+            >
+              <option value="ADMIN">Admin</option>
+              <option value="TRAINER">Trainer</option>
+              <option value="ANALYST">Analyst</option>
+              <option value="COUNSELLOR">Counsellor</option>
+            </select>
+          </div>
 
           <button
             type="submit"
