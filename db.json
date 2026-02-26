@@ -103,21 +103,6 @@
   ],
   "batches": [
     {
-      "id": "1772097136292",
-      "batchName": "BTO6",
-      "course": "java full stack",
-      "trainer": "vaibhav",
-      "startDate": "2026-02-26",
-      "endDate": "2026-03-12",
-      "maxStudents": "25",
-      "mode": "Online",
-      "status": "Ongoing",
-      "studentsEnrolled": 0,
-      "createdAt": "2026-02-26T09:12:16.292Z",
-      "createdBy": "vijay",
-      "createdById": "1772089388234"
-    },
-    {
       "id": "1772098115780",
       "batchName": "BT05",
       "course": "python",
