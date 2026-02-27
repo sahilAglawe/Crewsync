@@ -1,149 +1,126 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import axios from "axios";
 
-// Move AddUserModal outside the main component
-const AddUserModal = ({ 
-  show, 
-  onClose, 
-  activeTab, 
-  newUser, 
-  setNewUser, 
-  editingUser, 
-  onSave,
-  onCancel 
-}) => {
-  if (!show) return null;
+const API_URL = "http://localhost:5000";
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave();
-  };
+// ─── Toast Components ──────────────────────────────────────────────────
+function ToastContainer({ toasts, removeToast }) {
+  return (
+    <div style={{ position: "fixed", top: 20, right: 20, zIndex: 9999, display: "flex", flexDirection: "column", gap: "10px" }}>
+      {toasts.map(toast => (
+        <ToastItem key={toast.id} toast={toast} onClose={() => removeToast(toast.id)} />
+      ))}
+    </div>
+  );
+}
+
+function ToastItem({ toast, onClose }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3500);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const colors = { success: "#28a745", error: "#dc3545", warning: "#fd7e14", info: "#4a9eff" };
+  const icons = { success: "bi-check-circle-fill", error: "bi-x-circle-fill", warning: "bi-exclamation-triangle-fill", info: "bi-info-circle-fill" };
+
+  return (
+    <div style={{
+      background: "white", borderRadius: "12px", padding: "14px 20px", boxShadow: "0 8px 30px rgba(0,0,0,0.12)",
+      display: "flex", alignItems: "center", gap: "12px", minWidth: "300px", maxWidth: "420px",
+      borderLeft: `4px solid ${colors[toast.type] || colors.info}`,
+      animation: "slideInRight 0.35s ease"
+    }}>
+      <i className={`bi ${icons[toast.type] || icons.info}`} style={{ color: colors[toast.type] || colors.info, fontSize: "1.2rem" }}></i>
+      <span style={{ flex: 1, fontSize: "0.9rem", color: "#1a1e2b" }}>{toast.message}</span>
+      <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#aaa", fontSize: "1.1rem" }}>
+        <i className="bi bi-x"></i>
+      </button>
+    </div>
+  );
+}
+
+// ─── Add User Modal ─────────────────────────────────────────────────
+const AddUserModal = ({ show, onClose, activeTab, newUser, setNewUser, editingUser, onSave, onCancel }) => {
+  if (!show) return null;
+  const handleSubmit = (e) => { e.preventDefault(); onSave(); };
+  const roleLabel = activeTab?.charAt(0).toUpperCase() + activeTab?.slice(1);
 
   return (
     <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
-      <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
+      <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
         <div className="modal-content border-0" style={{ borderRadius: '15px' }}>
-          <div className="modal-header border-0 bg-primary text-white" style={{ borderRadius: '15px 15px 0 0' }}>
-            <h5 className="modal-title fw-bold">
-              <i className={`bi ${
-                activeTab === "trainer" ? "bi-person-workspace" :
-                activeTab === "analyst" ? "bi-graph-up" : "bi-chat-heart"
-              } me-2`}></i>
-              {editingUser ? 'Edit' : 'Add New'} {activeTab?.charAt(0).toUpperCase() + activeTab?.slice(1)}
+          <div className="modal-header border-0 pb-0" style={{ background: '#1a1e2b', borderRadius: '15px 15px 0 0' }}>
+            <h5 className="modal-title text-white fw-bold">
+              <i className={`bi ${activeTab === "trainer" ? "bi-person-workspace" : activeTab === "analyst" ? "bi-graph-up" : "bi-chat-heart"} me-2`} style={{ color: '#4a9eff' }}></i>
+              {editingUser ? 'Edit' : 'Add New'} {roleLabel}
             </h5>
             <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
           </div>
           <form onSubmit={handleSubmit}>
             <div className="modal-body p-4">
               <div className="row g-3">
-                {/* Basic Information - Required Fields */}
                 <div className="col-12">
-                  <h6 className="fw-bold mb-3"><i className="bi bi-person-badge me-2"></i>Basic Information</h6>
+                  <h6 className="fw-bold mb-3"><i className="bi bi-person-badge me-2" style={{ color: '#4a9eff' }}></i>Basic Information</h6>
                   <div className="row g-3">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Full Name <span className="text-danger">*</span></label>
-                      <input 
-                        type="text"
-                        className="form-control"
-                        value={newUser.name}
-                        onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                        required
-                        autoFocus
-                      />
+                      <input type="text" className="form-control" value={newUser.name}
+                        onChange={e => setNewUser({ ...newUser, name: e.target.value })} required autoFocus />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Email <span className="text-danger">*</span></label>
-                      <input 
-                        type="email"
-                        className="form-control"
-                        value={newUser.email}
-                        onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                        required
-                      />
+                      <input type="email" className="form-control" value={newUser.email}
+                        onChange={e => setNewUser({ ...newUser, email: e.target.value })} required />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold">Phone Number <span className="text-danger">*</span></label>
-                      <input 
-                        type="tel"
-                        className="form-control"
-                        value={newUser.phone}
-                        onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
-                        required
-                      />
+                      <label className="form-label small fw-semibold">Phone <span className="text-danger">*</span></label>
+                      <input type="tel" className="form-control" value={newUser.phone}
+                        onChange={e => setNewUser({ ...newUser, phone: e.target.value })} required />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Password <span className="text-danger">*</span></label>
-                      <input 
-                        type="password"
-                        className="form-control"
-                        value={newUser.password}
-                        onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                        required
-                      />
+                      <input type="password" className="form-control" value={newUser.password}
+                        onChange={e => setNewUser({ ...newUser, password: e.target.value })} required />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Joining Date</label>
-                      <input 
-                        type="date"
-                        className="form-control"
-                        value={newUser.joiningDate}
-                        onChange={(e) => setNewUser({ ...newUser, joiningDate: e.target.value })}
-                      />
+                      <input type="date" className="form-control" value={newUser.joiningDate}
+                        onChange={e => setNewUser({ ...newUser, joiningDate: e.target.value })} />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Salary</label>
                       <div className="input-group">
                         <span className="input-group-text">$</span>
-                        <input 
-                          type="number"
-                          className="form-control"
-                          value={newUser.salary}
-                          onChange={(e) => setNewUser({ ...newUser, salary: e.target.value })}
-                        />
+                        <input type="number" className="form-control" value={newUser.salary}
+                          onChange={e => setNewUser({ ...newUser, salary: e.target.value })} />
                       </div>
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Status</label>
-                      <select 
-                        className="form-select"
-                        value={newUser.status}
-                        onChange={(e) => setNewUser({ ...newUser, status: e.target.value })}
-                      >
+                      <select className="form-select" value={newUser.status}
+                        onChange={e => setNewUser({ ...newUser, status: e.target.value })}>
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>
                       </select>
                     </div>
                   </div>
                 </div>
-
-                {/* Trainer Specific Fields - Only show for trainer tab */}
                 {activeTab === "trainer" && (
                   <div className="col-12 mt-3">
-                    <h6 className="fw-bold mb-3">
-                      <i className="bi bi-person-workspace me-2"></i>
-                      Trainer Details
-                    </h6>
+                    <h6 className="fw-bold mb-3"><i className="bi bi-person-workspace me-2" style={{ color: '#4a9eff' }}></i>Trainer Details</h6>
                     <div className="row g-3">
                       <div className="col-md-6">
                         <label className="form-label small fw-semibold">Expertise</label>
-                        <input 
-                          type="text"
-                          className="form-control"
-                          value={newUser.expertise}
-                          onChange={(e) => setNewUser({ ...newUser, expertise: e.target.value })}
-                        />
+                        <input type="text" className="form-control" value={newUser.expertise}
+                          onChange={e => setNewUser({ ...newUser, expertise: e.target.value })} />
                       </div>
                       <div className="col-md-6">
                         <label className="form-label small fw-semibold">Batch Capacity</label>
-                        <input 
-                          type="text"
-                          className="form-control"
-                          value={newUser.batchCapacity}
-                          onChange={(e) => setNewUser({ ...newUser, batchCapacity: e.target.value })}
-                        />
+                        <input type="text" className="form-control" value={newUser.batchCapacity}
+                          onChange={e => setNewUser({ ...newUser, batchCapacity: e.target.value })} />
                       </div>
                     </div>
                   </div>
@@ -151,18 +128,9 @@ const AddUserModal = ({
               </div>
             </div>
             <div className="modal-footer border-0 bg-light">
-              <button 
-                type="button" 
-                className="btn btn-light px-4" 
-                onClick={onCancel}
-              >
-                Cancel
-              </button>
-              <button 
-                type="submit" 
-                className="btn btn-primary px-4"
-              >
-                {editingUser ? 'Update' : 'Add'} {activeTab?.charAt(0).toUpperCase() + activeTab?.slice(1)}
+              <button type="button" className="btn btn-light px-4" onClick={onCancel}>Cancel</button>
+              <button type="submit" className="btn text-white px-4" style={{ background: '#4a9eff', border: 'none' }}>
+                {editingUser ? 'Update' : 'Add'} {roleLabel}
               </button>
             </div>
           </form>
@@ -172,10 +140,9 @@ const AddUserModal = ({
   );
 };
 
-// Delete Confirmation Modal
+// ─── Delete Confirmation Modal ──────────────────────────────────────
 const DeleteConfirmationModal = ({ show, onClose, onConfirm, userName }) => {
   if (!show) return null;
-
   return (
     <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
       <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
@@ -192,20 +159,8 @@ const DeleteConfirmationModal = ({ show, onClose, onConfirm, userName }) => {
               </p>
             </div>
             <div className="d-flex gap-2">
-              <button 
-                className="btn btn-light flex-grow-1 py-2" 
-                onClick={onClose}
-                style={{ borderRadius: '10px' }}
-              >
-                Cancel
-              </button>
-              <button 
-                className="btn btn-danger flex-grow-1 py-2 text-white" 
-                onClick={onConfirm}
-                style={{ borderRadius: '10px' }}
-              >
-                Yes, Delete
-              </button>
+              <button className="btn btn-light flex-grow-1 py-2" onClick={onClose} style={{ borderRadius: '10px' }}>Cancel</button>
+              <button className="btn btn-danger flex-grow-1 py-2 text-white" onClick={onConfirm} style={{ borderRadius: '10px' }}>Yes, Delete</button>
             </div>
           </div>
         </div>
@@ -214,10 +169,9 @@ const DeleteConfirmationModal = ({ show, onClose, onConfirm, userName }) => {
   );
 };
 
-// Logout Confirmation Modal
+// ─── Logout Confirmation Modal ──────────────────────────────────────
 const LogoutConfirmationModal = ({ show, onClose, onConfirm }) => {
   if (!show) return null;
-
   return (
     <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
       <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
@@ -241,36 +195,31 @@ const LogoutConfirmationModal = ({ show, onClose, onConfirm }) => {
   );
 };
 
-// View Modal Component
+// ─── View User Modal ────────────────────────────────────────────────
 const ViewUserModal = ({ show, onClose, selectedUser, formatDate, formatSalary }) => {
   if (!show || !selectedUser) return null;
-
   return (
     <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
       <div className="modal-dialog modal-dialog-centered" onClick={e => e.stopPropagation()}>
         <div className="modal-content border-0" style={{ borderRadius: '15px' }}>
-          <div className="modal-header border-0 bg-light">
-            <h5 className="modal-title fw-bold">
-              <i className="bi bi-person-circle me-2"></i>
-              Employee Details
+          <div className="modal-header border-0 pb-0" style={{ background: '#1a1e2b', borderRadius: '15px 15px 0 0' }}>
+            <h5 className="modal-title text-white fw-bold">
+              <i className="bi bi-person-circle me-2" style={{ color: '#4a9eff' }}></i>Employee Details
             </h5>
-            <button type="button" className="btn-close" onClick={onClose}></button>
+            <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
           </div>
           <div className="modal-body p-4">
             <div className="row g-3">
               <div className="col-12 text-center mb-3">
-                <div className="bg-primary bg-opacity-10 rounded-circle d-inline-flex p-3 mb-2">
-                  <i className="bi bi-person-fill text-primary" style={{ fontSize: '2rem' }}></i>
+                <div className="rounded-circle d-inline-flex align-items-center justify-content-center p-3 mb-2" style={{ background: '#e6f0ff' }}>
+                  <i className="bi bi-person-fill" style={{ fontSize: '2rem', color: '#4a9eff' }}></i>
                 </div>
                 <h5 className="fw-bold mb-1">{selectedUser.name}</h5>
-                <span className={`badge ${
-                  selectedUser.role === "TRAINER" ? "bg-primary" :
-                  selectedUser.role === "ANALYST" ? "bg-success" : "bg-warning"
-                } px-3 py-2`}>
-                  {selectedUser.role}
-                </span>
+                <span className={`badge ${selectedUser.role === "TRAINER" ? "bg-primary" :
+                    selectedUser.role === "ANALYST" ? "bg-success" :
+                      selectedUser.role === "COUNSELOR" ? "bg-warning" : "bg-danger"
+                  } px-3 py-2`}>{selectedUser.role}</span>
               </div>
-
               <div className="col-md-6">
                 <div className="bg-light p-3 rounded-3">
                   <small className="text-muted d-block">Email</small>
@@ -298,17 +247,13 @@ const ViewUserModal = ({ show, onClose, selectedUser, formatDate, formatSalary }
               <div className="col-12">
                 <div className="bg-light p-3 rounded-3">
                   <small className="text-muted d-block">Status</small>
-                  <span className={`badge ${selectedUser.status === "Active" ? "bg-success" : "bg-secondary"} mt-1`}>
-                    {selectedUser.status}
-                  </span>
+                  <span className={`badge ${selectedUser.status === "Active" ? "bg-success" : "bg-secondary"} mt-1`}>{selectedUser.status}</span>
                 </div>
               </div>
             </div>
           </div>
           <div className="modal-footer border-0 bg-light">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
-              Close
-            </button>
+            <button type="button" className="btn btn-light" onClick={onClose}>Close</button>
           </div>
         </div>
       </div>
@@ -316,6 +261,9 @@ const ViewUserModal = ({ show, onClose, selectedUser, formatDate, formatSalary }
   );
 };
 
+// ═══════════════════════════════════════════════════════════════════════
+// ─── MAIN ADMIN DASHBOARD ───────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -327,45 +275,43 @@ const AdminDashboard = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
-  
-  // Simplified filters - only search and role
-  const [filters, setFilters] = useState({
-    search: "",
-    role: "all"
-  });
+  const [hoveredTab, setHoveredTab] = useState(null);
+  const [toasts, setToasts] = useState([]);
+
+  const [filters, setFilters] = useState({ search: "", role: "all" });
 
   const [stats, setStats] = useState({
-    totalUsers: 0,
-    activeTrainers: 0,
-    activeAnalysts: 0,
-    activeCounselors: 0,
+    totalUsers: 0, activeTrainers: 0, activeAnalysts: 0, activeCounselors: 0
   });
 
   const [newUser, setNewUser] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    password: "",
-    status: "Active",
-    joiningDate: "",
-    salary: "",
-    // Role specific fields
-    expertise: "",
-    batchCapacity: "",
-    tools: "",
-    analysisType: "",
-    specialties: "",
-    sessionMode: ""
+    name: "", email: "", phone: "", password: "", status: "Active",
+    joiningDate: "", salary: "", expertise: "", batchCapacity: "",
+    tools: "", analysisType: "", specialties: "", sessionMode: ""
   });
 
   const [editingUser, setEditingUser] = useState(null);
 
-  useEffect(() => {
-    fetchUsers();
+  // ─── Current user ──────────────────────────────────────────────
+  const currentUser = {
+    name: localStorage.getItem("userName") || "Admin",
+    email: localStorage.getItem("userEmail") || "admin@example.com"
+  };
+
+  // ─── Toast helper ──────────────────────────────────────────────
+  const showToast = useCallback((message, type = "success") => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, message, type }]);
+  }, []);
+  const removeToast = useCallback((id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  // ─── Fetch users ───────────────────────────────────────────────
+  useEffect(() => { fetchUsers(); }, []);
+
   const fetchUsers = () => {
-    axios.get("http://localhost:5000/users")
+    axios.get(`${API_URL}/users`)
       .then(response => {
         setUsers(response.data);
         setFilteredUsers(response.data);
@@ -373,32 +319,27 @@ const AdminDashboard = () => {
       })
       .catch(error => {
         console.error("Error fetching users:", error);
+        showToast("Failed to fetch users", "error");
       });
   };
 
   // Apply filters
   useEffect(() => {
     let result = users;
-
-    // Search filter
     if (filters.search) {
-      result = result.filter(user => 
+      result = result.filter(user =>
         user.name?.toLowerCase().includes(filters.search.toLowerCase()) ||
         user.email?.toLowerCase().includes(filters.search.toLowerCase()) ||
         user.phone?.includes(filters.search) ||
         user.role?.toLowerCase().includes(filters.search.toLowerCase())
       );
     }
-
-    // Role filter
     if (filters.role && filters.role !== "all") {
       result = result.filter(user => user.role === filters.role);
     }
-
     setFilteredUsers(result);
   }, [filters, users]);
 
-  // Update Stats
   const updateStats = (userList) => {
     setStats({
       totalUsers: userList.length,
@@ -408,355 +349,285 @@ const AdminDashboard = () => {
     });
   };
 
-  // Reset filters
-  const resetFilters = () => {
-    setFilters({
-      search: "",
-      role: "all"
-    });
-  };
+  const resetFilters = () => { setFilters({ search: "", role: "all" }); };
 
-  // Add User
+  // ─── Add User ──────────────────────────────────────────────────
   const handleAddUser = (role) => {
     if (!newUser.name || !newUser.email || !newUser.phone || !newUser.password) {
-      alert("Please fill all required fields");
+      showToast("Please fill all required fields", "warning");
       return;
     }
-
-    const roleSpecificData = role === "TRAINER" ? {
-      expertise: newUser.expertise,
-      batchCapacity: newUser.batchCapacity
-    } : role === "ANALYST" ? {
-      tools: newUser.tools,
-      analysisType: newUser.analysisType
-    } : {
-      specialties: newUser.specialties,
-      sessionMode: newUser.sessionMode
-    };
+    const roleSpecificData = role === "TRAINER" ? { expertise: newUser.expertise, batchCapacity: newUser.batchCapacity }
+      : role === "ANALYST" ? { tools: newUser.tools, analysisType: newUser.analysisType }
+        : { specialties: newUser.specialties, sessionMode: newUser.sessionMode };
 
     const newEntry = {
-      id: Date.now(),
-      name: newUser.name,
-      email: newUser.email,
-      phone: newUser.phone,
-      password: newUser.password,
-      status: newUser.status,
-      joiningDate: newUser.joiningDate,
-      salary: newUser.salary,
-      role,
-      ...roleSpecificData
+      id: Date.now(), name: newUser.name, email: newUser.email, phone: newUser.phone,
+      password: newUser.password, status: newUser.status, joiningDate: newUser.joiningDate,
+      salary: newUser.salary, role, ...roleSpecificData
     };
 
-    axios.post("http://localhost:5000/users", newEntry)
-      .then(response => {
-        fetchUsers(); // Refresh the list
-        resetForm();
-        setShowAddModal(false);
-      })
-      .catch(error => {
-        console.error("Error adding user:", error);
-      });
+    axios.post(`${API_URL}/users`, newEntry)
+      .then(() => { fetchUsers(); resetForm(); setShowAddModal(false); showToast(`${role.charAt(0) + role.slice(1).toLowerCase()} added successfully!`); })
+      .catch(error => { console.error("Error adding user:", error); showToast("Failed to add user", "error"); });
   };
 
-  // Delete User
-  const handleDeleteClick = (user) => {
-    setUserToDelete(user);
-    setShowDeleteModal(true);
-  };
+  // ─── Delete User ───────────────────────────────────────────────
+  const handleDeleteClick = (user) => { setUserToDelete(user); setShowDeleteModal(true); };
 
   const confirmDelete = () => {
     if (userToDelete) {
-      axios.delete(`http://localhost:5000/users/${userToDelete.id}`)
-        .then(() => {
-          fetchUsers(); // Refresh the list
-          setShowDeleteModal(false);
-          setUserToDelete(null);
-        })
-        .catch(error => {
-          console.error("Error deleting user:", error);
-        });
+      axios.delete(`${API_URL}/users/${userToDelete.id}`)
+        .then(() => { fetchUsers(); setShowDeleteModal(false); setUserToDelete(null); showToast("User deleted successfully!"); })
+        .catch(error => { console.error("Error deleting user:", error); showToast("Failed to delete user", "error"); });
     }
   };
 
-  const cancelDelete = () => {
-    setShowDeleteModal(false);
-    setUserToDelete(null);
-  };
+  const cancelDelete = () => { setShowDeleteModal(false); setUserToDelete(null); };
 
-  // Edit User
+  // ─── Edit User ─────────────────────────────────────────────────
   const handleEdit = (user) => {
     setEditingUser(user);
     setNewUser({
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      password: user.password,
-      status: user.status,
-      joiningDate: user.joiningDate || "",
-      salary: user.salary || "",
-      expertise: user.expertise || "",
-      batchCapacity: user.batchCapacity || "",
-      tools: user.tools || "",
-      analysisType: user.analysisType || "",
-      specialties: user.specialties || "",
-      sessionMode: user.sessionMode || ""
+      name: user.name, email: user.email, phone: user.phone, password: user.password,
+      status: user.status, joiningDate: user.joiningDate || "", salary: user.salary || "",
+      expertise: user.expertise || "", batchCapacity: user.batchCapacity || "",
+      tools: user.tools || "", analysisType: user.analysisType || "",
+      specialties: user.specialties || "", sessionMode: user.sessionMode || ""
     });
     setShowAddModal(true);
   };
 
   const handleUpdate = () => {
     if (!editingUser) return;
-
-    const roleSpecificData = editingUser.role === "TRAINER" ? {
-      expertise: newUser.expertise,
-      batchCapacity: newUser.batchCapacity
-    } : editingUser.role === "ANALYST" ? {
-      tools: newUser.tools,
-      analysisType: newUser.analysisType
-    } : {
-      specialties: newUser.specialties,
-      sessionMode: newUser.sessionMode
-    };
+    const roleSpecificData = editingUser.role === "TRAINER" ? { expertise: newUser.expertise, batchCapacity: newUser.batchCapacity }
+      : editingUser.role === "ANALYST" ? { tools: newUser.tools, analysisType: newUser.analysisType }
+        : { specialties: newUser.specialties, sessionMode: newUser.sessionMode };
 
     const updatedEntry = {
-      ...editingUser,
-      name: newUser.name,
-      email: newUser.email,
-      phone: newUser.phone,
-      password: newUser.password,
-      status: newUser.status,
-      joiningDate: newUser.joiningDate,
-      salary: newUser.salary,
-      ...roleSpecificData
+      ...editingUser, name: newUser.name, email: newUser.email, phone: newUser.phone,
+      password: newUser.password, status: newUser.status, joiningDate: newUser.joiningDate,
+      salary: newUser.salary, ...roleSpecificData
     };
 
-    axios.put(`http://localhost:5000/users/${editingUser.id}`, updatedEntry)
-      .then(response => {
-        fetchUsers(); // Refresh the list
-        setEditingUser(null);
-        resetForm();
-        setShowAddModal(false);
-      })
-      .catch(error => {
-        console.error("Error updating user:", error);
-      });
+    axios.put(`${API_URL}/users/${editingUser.id}`, updatedEntry)
+      .then(() => { fetchUsers(); setEditingUser(null); resetForm(); setShowAddModal(false); showToast("User updated successfully!"); })
+      .catch(error => { console.error("Error updating user:", error); showToast("Failed to update user", "error"); });
   };
 
-  // Reset form
   const resetForm = () => {
-    setNewUser({
-      name: "", email: "", phone: "", password: "", status: "Active",
-      joiningDate: "", salary: "", expertise: "", batchCapacity: "", 
-      tools: "", analysisType: "", specialties: "", sessionMode: ""
-    });
+    setNewUser({ name: "", email: "", phone: "", password: "", status: "Active", joiningDate: "", salary: "", expertise: "", batchCapacity: "", tools: "", analysisType: "", specialties: "", sessionMode: "" });
   };
 
-  // View User Details (Modal)
-  const handleView = (user) => {
-    setSelectedUser(user);
-    setShowViewModal(true);
-  };
+  const handleView = (user) => { setSelectedUser(user); setShowViewModal(true); };
 
-  // Format salary for display
   const formatSalary = (salary) => {
     if (!salary) return '-';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(salary);
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(salary);
   };
-
-  // Format date for display
   const formatDate = (date) => {
     if (!date) return '-';
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
-  // Logout handlers
-  const handleLogoutClick = () => {
-    setShowLogoutModal(true);
+  // ─── Logout ────────────────────────────────────────────────────
+  const handleLogoutClick = () => setShowLogoutModal(true);
+  const confirmLogout = () => { setShowLogoutModal(false); localStorage.clear(); navigate("/login"); };
+  const cancelLogout = () => setShowLogoutModal(false);
+
+  const handleCloseAddModal = () => { setShowAddModal(false); setEditingUser(null); resetForm(); };
+  const handleCancelAddModal = () => { setShowAddModal(false); setEditingUser(null); resetForm(); };
+  const handleSaveAddModal = () => { if (editingUser) { handleUpdate(); } else { handleAddUser(activeTab?.toUpperCase()); } };
+
+  // ─── Sidebar tabs config ───────────────────────────────────────
+  const sidebarTabs = [
+    { key: "dashboard", label: "Dashboard", icon: "bi-speedometer2", color: "#4a9eff" },
+    { key: "trainer", label: "Trainers", icon: "bi-person-workspace", color: "#f5576c" },
+    { key: "analyst", label: "Analysts", icon: "bi-graph-up", color: "#28a745" },
+    { key: "counselor", label: "Counselors", icon: "bi-chat-heart", color: "#fd7e14" }
+  ];
+
+  const sidebarStyles = {
+    navItem: { transition: "all 0.3s ease-in-out", cursor: "pointer", position: "relative", overflow: "hidden" },
+    navItemActive: (color) => ({
+      background: `linear-gradient(90deg, ${color}33 0%, ${color}10 100%)`,
+      borderLeft: `4px solid ${color}`, boxShadow: `0 4px 15px ${color}22`, color
+    }),
+    navItemHover: (color) => ({
+      transform: "translateX(6px)", background: `linear-gradient(90deg, ${color}22 0%, transparent 100%)`,
+      borderLeft: `4px solid ${color}`, boxShadow: `0 4px 15px rgba(0,0,0,0.1)`
+    })
   };
 
-  const confirmLogout = () => {
-    setShowLogoutModal(false);
-    localStorage.removeItem("isLoggedIn");
-    localStorage.removeItem("role");
-    navigate("/login");
-  };
-
-  const cancelLogout = () => {
-    setShowLogoutModal(false);
-  };
-
-  // Modal handlers
-  const handleCloseAddModal = () => {
-    setShowAddModal(false);
-    setEditingUser(null);
-    resetForm();
-  };
-
-  const handleCancelAddModal = () => {
-    setShowAddModal(false);
-    setEditingUser(null);
-    resetForm();
-  };
-
-  const handleSaveAddModal = () => {
-    if (editingUser) {
-      handleUpdate();
-    } else {
-      handleAddUser(activeTab?.toUpperCase());
-    }
-  };
-
+  // ═══════════════════════════════════════════════════════════════
+  // ─── RENDER ───────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════
   return (
-    <div className="d-flex" style={{ minHeight: "100vh", background: "#f8f9fa" }}>
-      
-      {/* Sidebar */}
-      <div 
-        className="text-white shadow" 
-        style={{ 
-          width: "260px", 
-          minHeight: "100vh", 
-          position: "fixed",
-          background: "#1a1e2b",
-        }}
-      >
+    <div className="d-flex" style={{ minHeight: "100vh", background: "#f5f7fa" }}>
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+
+      <style>{`
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .sidebar-tab { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; }
+        .sidebar-tab:hover { transform: translateX(6px); }
+      `}</style>
+
+      {/* ─── Sidebar ──────────────────────────────────────────── */}
+      <div className="text-white shadow-lg"
+        style={{
+          width: "280px", minHeight: "100vh", position: "fixed",
+          background: "linear-gradient(180deg, #1a1e2b 0%, #141722 100%)",
+          borderRight: "1px solid rgba(255,255,255,0.05)"
+        }}>
         <div className="p-4">
-          <h5 className="fw-bold mb-4 text-primary">CrewSync</h5>
-          <p className="text-white-50 small mb-4">Admin Dashboard</p>
+          <h4 className="fw-bold mb-4" style={{ color: "#4a9eff" }}>CrewSync</h4>
+
+          {/* Profile */}
+          <div className="text-center mb-4 p-3 rounded"
+            style={{
+              transition: "all 0.3s ease", cursor: "default",
+              background: hoveredTab === "profile" ? "rgba(255,255,255,0.05)" : "transparent"
+            }}
+            onMouseEnter={() => setHoveredTab("profile")} onMouseLeave={() => setHoveredTab(null)}>
+            <div className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
+              style={{
+                width: "80px", height: "80px", background: "#2a2f3c", transition: "all 0.3s ease",
+                transform: hoveredTab === "profile" ? "scale(1.05)" : "scale(1)",
+                boxShadow: hoveredTab === "profile" ? "0 0 20px rgba(74,158,255,0.3)" : "none"
+              }}>
+              <i className="bi bi-shield-lock-fill" style={{ fontSize: "2.2rem", color: "#4a9eff" }}></i>
+            </div>
+            <h6 className="text-white mb-1">{currentUser.name}</h6>
+            <p className="text-white-50 small mb-2">{currentUser.email}</p>
+            <span className="badge px-3 py-2" style={{ background: 'linear-gradient(135deg, #dc3545, #c82333)' }}>Admin</span>
+          </div>
+
+          <p className="text-white-50 small mb-4">Employee Management</p>
 
           <nav className="nav flex-column">
-            <button 
-              className={`nav-link text-white text-start w-100 border-0 bg-transparent mb-2 py-2 px-3 rounded ${
-                activeTab === "dashboard" ? "bg-primary" : "hover-bg"
-              }`}
-              onClick={() => setActiveTab("dashboard")}
-            >
-              <i className="bi bi-speedometer2 me-2"></i>
-              Dashboard
-            </button>
+            {sidebarTabs.map(tab => {
+              const isActive = activeTab === tab.key;
+              const isHovered = hoveredTab === tab.key;
+              const accentColor = isActive ? tab.color : (isHovered ? tab.color : "white");
 
-            <button 
-              className={`nav-link text-white text-start w-100 border-0 bg-transparent mb-2 py-2 px-3 rounded ${
-                activeTab === "trainer" ? "bg-primary" : "hover-bg"
-              }`}
-              onClick={() => {
-                setActiveTab("trainer");
-                resetForm();
-              }}
-            >
-              <i className="bi bi-person-workspace me-2"></i>
-              Trainers
-            </button>
+              return (
+                <button key={tab.key}
+                  className="nav-link text-start w-100 border-0 bg-transparent mb-2 py-2 px-3 rounded sidebar-tab"
+                  onClick={() => { setActiveTab(tab.key); if (tab.key !== "dashboard") resetForm(); }}
+                  onMouseEnter={() => setHoveredTab(tab.key)}
+                  onMouseLeave={() => setHoveredTab(null)}
+                  style={{
+                    ...sidebarStyles.navItem, color: accentColor,
+                    ...(isActive ? sidebarStyles.navItemActive(tab.color) : {}),
+                    ...(isHovered && !isActive ? sidebarStyles.navItemHover(tab.color) : {})
+                  }}>
+                  <i className={`bi ${tab.icon} me-2`}
+                    style={{
+                      transition: "all 0.25s ease", transform: isHovered ? "scale(1.2)" : "scale(1)",
+                      color: accentColor, filter: isHovered && !isActive ? `drop-shadow(0 0 4px ${tab.color}88)` : "none"
+                    }}></i>
+                  {tab.label}
+                  {tab.key !== "dashboard" && (
+                    <span className="badge ms-auto" style={{
+                      background: isActive ? tab.color : (isHovered ? tab.color : 'rgba(255,255,255,0.15)'),
+                      transition: 'background 0.3s ease'
+                    }}>{users.filter(u => u.role === tab.key.toUpperCase()).length}</span>
+                  )}
+                  {isHovered && (
+                    <span className="position-absolute end-0 me-3" style={{ fontSize: "0.8rem", color: tab.color }}>
+                      <i className="bi bi-chevron-right"></i>
+                    </span>
+                  )}
+                </button>
+              );
+            })}
 
-            <button 
-              className={`nav-link text-white text-start w-100 border-0 bg-transparent mb-2 py-2 px-3 rounded ${
-                activeTab === "analyst" ? "bg-primary" : "hover-bg"
-              }`}
-              onClick={() => {
-                setActiveTab("analyst");
-                resetForm();
-              }}
-            >
-              <i className="bi bi-graph-up me-2"></i>
-              Analysts
-            </button>
+            <hr className="my-4" style={{ background: 'rgba(255,255,255,0.1)' }} />
 
-            <button 
-              className={`nav-link text-white text-start w-100 border-0 bg-transparent mb-2 py-2 px-3 rounded ${
-                activeTab === "counselor" ? "bg-primary" : "hover-bg"
-              }`}
-              onClick={() => {
-                setActiveTab("counselor");
-                resetForm();
-              }}
-            >
-              <i className="bi bi-chat-heart me-2"></i>
-              Counselors
-            </button>
-
-            <hr className="my-4 bg-white-50" />
-            
-            <button 
-              className="nav-link text-white text-start w-100 border-0 bg-transparent py-2 px-3 rounded"
+            {/* Logout */}
+            <button className="nav-link text-start w-100 border-0 bg-transparent py-2 px-3 rounded sidebar-tab"
               onClick={handleLogoutClick}
-              style={{ color: '#ff6b6b' }}
-            >
-              <i className="bi bi-box-arrow-right me-2"></i>
+              onMouseEnter={() => setHoveredTab("logout")} onMouseLeave={() => setHoveredTab(null)}
+              style={{
+                ...sidebarStyles.navItem,
+                color: hoveredTab === "logout" ? "#ff6b6b" : "white",
+                ...(hoveredTab === "logout" ? {
+                  background: "linear-gradient(90deg, rgba(255,107,107,0.18) 0%, transparent 100%)",
+                  borderLeft: "4px solid #ff6b6b", transform: "translateX(6px)"
+                } : {})
+              }}>
+              <i className="bi bi-box-arrow-right me-2"
+                style={{ transition: "all 0.25s ease", transform: hoveredTab === "logout" ? "scale(1.2)" : "scale(1)" }}></i>
               Logout
+              {hoveredTab === "logout" && (
+                <span className="position-absolute end-0 me-3" style={{ color: "#ff6b6b" }}><i className="bi bi-chevron-right"></i></span>
+              )}
             </button>
           </nav>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-grow-1 p-4" style={{ marginLeft: "260px" }}>
-        
-        {/* Dashboard */}
+      {/* ─── Main Content ─────────────────────────────────────── */}
+      <div className="flex-grow-1 p-4" style={{ marginLeft: "280px" }}>
+
+        {/* ─── Dashboard Tab ─────────────────────────────────── */}
         {activeTab === "dashboard" && (
           <div>
-            <h4 className="fw-bold mb-4">Dashboard Overview</h4>
-            
+            <h4 className="fw-bold mb-4" style={{ color: "#1a1e2b" }}>
+              <i className="bi bi-speedometer2 me-2" style={{ color: '#4a9eff' }}></i>Dashboard Overview
+            </h4>
+
             {/* Stats Cards */}
             <div className="row g-4 mb-4">
-              <div className="col-md-3">
-                <div className="card border-0 shadow-sm p-3" style={{ borderRadius: '15px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-                  <div className="d-flex justify-content-between align-items-center text-white">
-                    <div>
-                      <h6 className="text-white-50 mb-2">Total Users</h6>
-                      <h3 className="fw-bold mb-0">{stats.totalUsers}</h3>
+              {[
+                { label: "Total Users", value: stats.totalUsers, icon: "bi-people-fill", bg: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" },
+                { label: "Active Trainers", value: stats.activeTrainers, icon: "bi-person-workspace", bg: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" },
+                { label: "Active Analysts", value: stats.activeAnalysts, icon: "bi-graph-up", bg: "linear-gradient(135deg, #4a9eff 0%, #2774b0 100%)" },
+                { label: "Active Counselors", value: stats.activeCounselors, icon: "bi-chat-heart-fill", bg: "linear-gradient(135deg, #84fab0 0%, #44c78e 100%)" }
+              ].map((card, i) => (
+                <div className="col-md-3" key={i}>
+                  <div className="card border-0 shadow p-3 h-100" style={{ borderRadius: '12px', background: card.bg, color: 'white' }}>
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <h6 className="text-white-50 mb-2">{card.label}</h6>
+                        <h3 className="fw-bold mb-0">{card.value}</h3>
+                      </div>
+                      <i className={`bi ${card.icon} fs-1 text-white-50`}></i>
                     </div>
-                    <i className="bi bi-people fs-1 text-white-50"></i>
                   </div>
                 </div>
-              </div>
-              <div className="col-md-3">
-                <div className="card border-0 shadow-sm p-3" style={{ borderRadius: '15px', background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
-                  <div className="d-flex justify-content-between align-items-center text-white">
-                    <div>
-                      <h6 className="text-white-50 mb-2">Active Trainers</h6>
-                      <h3 className="fw-bold mb-0">{stats.activeTrainers}</h3>
+              ))}
+            </div>
+
+            {/* Quick Actions */}
+            <div className="row g-4 mb-4">
+              {[
+                { label: "Add Trainer", icon: "bi-person-plus-fill", bg: "#f5576c", action: () => { setActiveTab("trainer"); setShowAddModal(true); } },
+                { label: "Add Analyst", icon: "bi-graph-up-arrow", bg: "#28a745", action: () => { setActiveTab("analyst"); setShowAddModal(true); } },
+                { label: "Add Counselor", icon: "bi-chat-heart-fill", bg: "#fd7e14", action: () => { setActiveTab("counselor"); setShowAddModal(true); } }
+              ].map((item, idx) => (
+                <div className="col-md-4" key={idx}>
+                  <div className="card border-0 shadow h-100" onClick={item.action}
+                    style={{ borderRadius: '12px', cursor: 'pointer', transition: 'all 0.25s ease' }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = ''; }}>
+                    <div className="card-body text-center p-4">
+                      <div className="rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                        style={{ width: '50px', height: '50px', background: item.bg }}>
+                        <i className={`bi ${item.icon} text-white`} style={{ fontSize: '1.3rem' }}></i>
+                      </div>
+                      <h6 className="fw-bold mb-0" style={{ fontSize: '0.9rem', color: '#1a1e2b' }}>{item.label}</h6>
                     </div>
-                    <i className="bi bi-person-workspace fs-1 text-white-50"></i>
                   </div>
                 </div>
-              </div>
-              <div className="col-md-3">
-                <div className="card border-0 shadow-sm p-3" style={{ borderRadius: '15px', background: 'linear-gradient(135deg, #5ea9f0 0%, #2774b0 100%)' }}>
-                  <div className="d-flex justify-content-between align-items-center text-white">
-                    <div>
-                      <h6 className="text-white-50 mb-2">Active Analysts</h6>
-                      <h3 className="fw-bold mb-0">{stats.activeAnalysts}</h3>
-                    </div>
-                    <i className="bi bi-graph-up fs-1 text-white-50"></i>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-3">
-                <div className="card border-0 shadow-sm p-3" style={{ borderRadius: '15px', background: 'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)' }}>
-                  <div className="d-flex justify-content-between align-items-center" style={{ color: '#1a1e2b' }}>
-                    <div>
-                      <h6 className="text-white-50 mb-2">Active Counselors</h6>
-                      <h3 className="fw-bold mb-0">{stats.activeCounselors}</h3>
-                    </div>
-                    <i className="bi bi-chat-heart fs-1 text-white-50"></i>
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
 
             {/* Filters */}
-            <div className="card border-0 shadow-sm mb-4" style={{ borderRadius: '15px' }}>
+            <div className="card border-0 shadow mb-4" style={{ borderRadius: '12px' }}>
               <div className="card-body">
                 <div className="d-flex justify-content-between align-items-center mb-3">
-                  <h6 className="fw-bold mb-0">Filters</h6>
+                  <h6 className="fw-bold mb-0"><i className="bi bi-funnel me-2" style={{ color: '#4a9eff' }}></i>Filters</h6>
                   <button className="btn btn-sm btn-outline-secondary" onClick={resetFilters}>
                     <i className="bi bi-arrow-repeat me-1"></i>Reset
                   </button>
@@ -764,24 +635,14 @@ const AdminDashboard = () => {
                 <div className="row g-3">
                   <div className="col-md-8">
                     <div className="input-group">
-                      <span className="input-group-text bg-light border-0">
-                        <i className="bi bi-search"></i>
-                      </span>
-                      <input
-                        type="text"
-                        className="form-control border-0 bg-light"
-                        placeholder="Search by name, email, phone, or role..."
-                        value={filters.search}
-                        onChange={(e) => setFilters({...filters, search: e.target.value})}
-                      />
+                      <span className="input-group-text bg-light border-0"><i className="bi bi-search"></i></span>
+                      <input type="text" className="form-control border-0 bg-light" placeholder="Search by name, email, phone, or role..."
+                        value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} />
                     </div>
                   </div>
                   <div className="col-md-4">
-                    <select 
-                      className="form-select bg-light border-0"
-                      value={filters.role}
-                      onChange={(e) => setFilters({...filters, role: e.target.value})}
-                    >
+                    <select className="form-select bg-light border-0" value={filters.role}
+                      onChange={e => setFilters({ ...filters, role: e.target.value })}>
                       <option value="all">All Roles</option>
                       <option value="TRAINER">Trainer</option>
                       <option value="ANALYST">Analyst</option>
@@ -793,224 +654,163 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            {/* Employee List - Table Format */}
-            <div className="card border-0 shadow-sm" style={{ borderRadius: '15px' }}>
-              <div className="card-header bg-white border-0 py-3">
-                <h6 className="fw-bold mb-0">Employee Directory ({filteredUsers.length})</h6>
+            {/* Employee Directory Table */}
+            <div className="card border-0 shadow" style={{ borderRadius: '12px', overflow: 'hidden' }}>
+              <div className="card-header bg-white border-0 py-3 px-4">
+                <h6 className="fw-bold mb-0"><i className="bi bi-people me-2" style={{ color: '#4a9eff' }}></i>Employee Directory ({filteredUsers.length})</h6>
               </div>
-              <div className="card-body p-0">
-                <div className="table-responsive">
-                  <table className="table table-hover align-middle mb-0">
-                    <thead className="bg-light">
-                      <tr>
-                        <th className="py-3 ps-4">Employee</th>
-                        <th className="py-3">Contact</th>
-                        <th className="py-3">Role</th>
-                        <th className="py-3">Joining Date</th>
-                        <th className="py-3">Salary</th>
-                        <th className="py-3">Status</th>
-                        <th className="py-3">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredUsers.length > 0 ? (
-                        filteredUsers.map((user) => (
-                          <tr key={user.id}>
-                            <td className="py-3 ps-4">
-                              <div className="d-flex align-items-center">
-                                <div className="bg-primary bg-opacity-10 rounded-circle p-2 me-2">
-                                  <i className="bi bi-person-fill text-primary"></i>
-                                </div>
-                                <div>
-                                  <div className="fw-semibold">{user.name}</div>
-                                  <small className="text-muted">ID: {user.id}</small>
-                                </div>
+              <div className="table-responsive">
+                <table className="table table-hover align-middle mb-0">
+                  <thead style={{ background: '#1a1e2b', color: 'white' }}>
+                    <tr>
+                      <th className="py-3 ps-4">Employee</th>
+                      <th className="py-3">Contact</th>
+                      <th className="py-3">Role</th>
+                      <th className="py-3">Joining Date</th>
+                      <th className="py-3">Salary</th>
+                      <th className="py-3">Status</th>
+                      <th className="py-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredUsers.length > 0 ? (
+                      filteredUsers.map(user => (
+                        <tr key={user.id}>
+                          <td className="py-3 ps-4">
+                            <div className="d-flex align-items-center">
+                              <div className="rounded-circle d-flex align-items-center justify-content-center me-2"
+                                style={{ width: '34px', height: '34px', background: '#e6f0ff', flexShrink: 0 }}>
+                                <i className="bi bi-person-fill" style={{ color: '#4a9eff' }}></i>
                               </div>
-                            </td>
-                            <td className="py-3">
-                              <div>{user.email}</div>
-                              <small className="text-muted">{user.phone}</small>
-                            </td>
-                            <td className="py-3">
-                              <span className={`badge ${
-                                user.role === "TRAINER" ? "bg-primary" :
-                                user.role === "ANALYST" ? "bg-success" : 
-                                user.role === "COUNSELOR" ? "bg-warning" : "bg-danger"
-                              }`}>
-                                {user.role}
-                              </span>
-                            </td>
-                            <td className="py-3">{formatDate(user.joiningDate)}</td>
-                            <td className="py-3 fw-semibold">{formatSalary(user.salary)}</td>
-                            <td className="py-3">
-                              <span className={`badge ${user.status === "Active" ? "bg-success" : "bg-secondary"} bg-opacity-10 text-${user.status === "Active" ? "success" : "secondary"}`}>
-                                {user.status}
-                              </span>
-                            </td>
-                            <td className="py-3">
-                              <button 
-                                className="btn btn-sm btn-outline-primary me-1"
-                                onClick={() => handleView(user)}
-                                title="View Details"
-                              >
-                                <i className="bi bi-eye"></i>
-                              </button>
-                              <button 
-                                className="btn btn-sm btn-outline-warning me-1"
-                                onClick={() => handleEdit(user)}
-                                title="Edit"
-                              >
-                                <i className="bi bi-pencil"></i>
-                              </button>
-                              <button
-                                className="btn btn-sm btn-outline-danger"
-                                onClick={() => handleDeleteClick(user)}
-                                title="Delete"
-                              >
-                                <i className="bi bi-trash"></i>
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="7" className="text-center py-5 text-muted">
-                            <i className="bi bi-inbox fs-1 d-block mb-3"></i>
-                            No employees found matching the filters
+                              <div>
+                                <div className="fw-semibold">{user.name}</div>
+                                <small className="text-muted">ID: {user.id}</small>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3">
+                            <div>{user.email}</div>
+                            <small className="text-muted">{user.phone}</small>
+                          </td>
+                          <td className="py-3">
+                            <span className={`badge ${user.role === "TRAINER" ? "bg-primary" :
+                                user.role === "ANALYST" ? "bg-success" :
+                                  user.role === "COUNSELOR" ? "bg-warning" : "bg-danger"
+                              }`}>{user.role}</span>
+                          </td>
+                          <td className="py-3">{formatDate(user.joiningDate)}</td>
+                          <td className="py-3 fw-semibold">{formatSalary(user.salary)}</td>
+                          <td className="py-3">
+                            <span className={`badge ${user.status === "Active" ? "bg-success" : "bg-secondary"}`}>{user.status}</span>
+                          </td>
+                          <td className="py-3">
+                            <button className="btn btn-sm btn-info text-white me-1" onClick={() => handleView(user)} style={{ borderRadius: '8px' }}>
+                              <i className="bi bi-eye-fill"></i>
+                            </button>
+                            <button className="btn btn-sm btn-warning text-white me-1" onClick={() => handleEdit(user)} style={{ borderRadius: '8px' }}>
+                              <i className="bi bi-pencil-fill"></i>
+                            </button>
+                            <button className="btn btn-sm btn-danger text-white" onClick={() => handleDeleteClick(user)} style={{ borderRadius: '8px' }}>
+                              <i className="bi bi-trash-fill"></i>
+                            </button>
                           </td>
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                      ))
+                    ) : (
+                      <tr><td colSpan="7" className="text-center py-5 text-muted"><i className="bi bi-inbox fs-1 d-block mb-3"></i>No employees found matching the filters</td></tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
         )}
 
-        {/* Role Management Pages */}
+        {/* ─── Role Management Tabs (Trainer/Analyst/Counselor) ─── */}
         {(activeTab === "trainer" || activeTab === "analyst" || activeTab === "counselor") && (
           <div>
-            {/* Header with Add Button */}
             <div className="d-flex justify-content-between align-items-center mb-4">
-              <h4 className="fw-bold">
-                <i className={`bi ${
-                  activeTab === "trainer" ? "bi-person-workspace text-primary" :
-                  activeTab === "analyst" ? "bi-graph-up text-success" : "bi-chat-heart text-warning"
-                } me-2`}></i>
+              <h4 className="fw-bold" style={{ color: "#1a1e2b" }}>
+                <i className={`bi ${activeTab === "trainer" ? "bi-person-workspace" : activeTab === "analyst" ? "bi-graph-up" : "bi-chat-heart"} me-2`}
+                  style={{ color: sidebarTabs.find(t => t.key === activeTab)?.color }}></i>
                 {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Management
               </h4>
-              <button 
-                className="btn btn-primary px-4"
-                style={{ borderRadius: '10px' }}
-                onClick={() => setShowAddModal(true)}
-              >
-                <i className="bi bi-plus-circle me-2"></i>
-                Add New {activeTab}
+              <button className="btn text-white px-4 py-2" style={{ background: '#4a9eff', border: 'none', borderRadius: '10px' }}
+                onClick={() => setShowAddModal(true)}>
+                <i className="bi bi-plus-circle me-2"></i>Add New {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
               </button>
             </div>
 
-            {/* Employee List - Table Format for Role Pages */}
-            <div className="card border-0 shadow-sm" style={{ borderRadius: '15px' }}>
-              <div className="card-header bg-white border-0 py-3">
-                <h6 className="fw-bold mb-0">{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} List</h6>
-              </div>
-              <div className="card-body p-0">
-                <div className="table-responsive">
-                  <table className="table table-hover align-middle mb-0">
-                    <thead className="bg-light">
-                      <tr>
-                        <th className="py-3 ps-4">Employee</th>
-                        <th className="py-3">Contact</th>
-                        <th className="py-3">Role</th>
-                        <th className="py-3">Joining Date</th>
-                        <th className="py-3">Salary</th>
-                        <th className="py-3">Status</th>
-                        <th className="py-3">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.filter(u => u.role === activeTab.toUpperCase()).length > 0 ? (
-                        users.filter(u => u.role === activeTab.toUpperCase()).map(user => (
-                          <tr key={user.id}>
-                            <td className="py-3 ps-4">
-                              <div className="d-flex align-items-center">
-                                <div className={`rounded-circle p-2 me-2 ${
-                                  activeTab === "trainer" ? "bg-primary" :
-                                  activeTab === "analyst" ? "bg-success" : "bg-warning"
-                                } bg-opacity-10`}>
-                                  <i className={`bi ${
-                                    activeTab === "trainer" ? "bi-person-workspace" :
-                                    activeTab === "analyst" ? "bi-graph-up" : "bi-chat-heart"
-                                  } ${
-                                    activeTab === "trainer" ? "text-primary" :
-                                    activeTab === "analyst" ? "text-success" : "text-warning"
-                                  }`}></i>
-                                </div>
-                                <div>
-                                  <div className="fw-semibold">{user.name}</div>
-                                  <small className="text-muted">ID: {user.id}</small>
-                                </div>
+            <div className="card border-0 shadow" style={{ borderRadius: '12px', overflow: 'hidden' }}>
+              <div className="table-responsive">
+                <table className="table table-hover align-middle mb-0">
+                  <thead style={{ background: '#1a1e2b', color: 'white' }}>
+                    <tr>
+                      <th className="py-3 ps-4">Employee</th>
+                      <th className="py-3">Contact</th>
+                      <th className="py-3">Role</th>
+                      <th className="py-3">Joining Date</th>
+                      <th className="py-3">Salary</th>
+                      <th className="py-3">Status</th>
+                      <th className="py-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.filter(u => u.role === activeTab.toUpperCase()).length > 0 ? (
+                      users.filter(u => u.role === activeTab.toUpperCase()).map(user => (
+                        <tr key={user.id}>
+                          <td className="py-3 ps-4">
+                            <div className="d-flex align-items-center">
+                              <div className="rounded-circle d-flex align-items-center justify-content-center me-2"
+                                style={{
+                                  width: '34px', height: '34px',
+                                  background: activeTab === "trainer" ? "#fce4ec" : activeTab === "analyst" ? "#e8f5e9" : "#fff3e0",
+                                  flexShrink: 0
+                                }}>
+                                <i className={`bi ${activeTab === "trainer" ? "bi-person-workspace" : activeTab === "analyst" ? "bi-graph-up" : "bi-chat-heart"}`}
+                                  style={{ color: sidebarTabs.find(t => t.key === activeTab)?.color }}></i>
                               </div>
-                            </td>
-                            <td className="py-3">
-                              <div>{user.email}</div>
-                              <small className="text-muted">{user.phone}</small>
-                            </td>
-                            <td className="py-3">
-                              <span className={`badge ${
-                                activeTab === "trainer" ? "bg-primary" :
-                                activeTab === "analyst" ? "bg-success" : "bg-warning"
-                              }`}>
-                                {user.role}
-                              </span>
-                            </td>
-                            <td className="py-3">{formatDate(user.joiningDate)}</td>
-                            <td className="py-3 fw-semibold">{formatSalary(user.salary)}</td>
-                            <td className="py-3">
-                              <span className={`badge ${user.status === "Active" ? "bg-success" : "bg-secondary"} bg-opacity-10 text-${user.status === "Active" ? "success" : "secondary"}`}>
-                                {user.status}
-                              </span>
-                            </td>
-                            <td className="py-3">
-                              <button 
-                                className="btn btn-sm btn-outline-primary me-1"
-                                onClick={() => handleView(user)}
-                                title="View"
-                              >
-                                <i className="bi bi-eye"></i>
-                              </button>
-                              <button 
-                                className="btn btn-sm btn-outline-warning me-1"
-                                onClick={() => handleEdit(user)}
-                                title="Edit"
-                              >
-                                <i className="bi bi-pencil"></i>
-                              </button>
-                              <button
-                                className="btn btn-sm btn-outline-danger"
-                                onClick={() => handleDeleteClick(user)}
-                                title="Delete"
-                              >
-                                <i className="bi bi-trash"></i>
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="7" className="text-center py-5 text-muted">
-                            <i className={`bi ${
-                              activeTab === "trainer" ? "bi-person-workspace" :
-                              activeTab === "analyst" ? "bi-graph-up" : "bi-chat-heart"
-                            } fs-1 d-block mb-3`}></i>
-                            No {activeTab}s found
+                              <div>
+                                <div className="fw-semibold">{user.name}</div>
+                                <small className="text-muted">ID: {user.id}</small>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3">
+                            <div>{user.email}</div>
+                            <small className="text-muted">{user.phone}</small>
+                          </td>
+                          <td className="py-3">
+                            <span className={`badge ${activeTab === "trainer" ? "bg-primary" : activeTab === "analyst" ? "bg-success" : "bg-warning"}`}>{user.role}</span>
+                          </td>
+                          <td className="py-3">{formatDate(user.joiningDate)}</td>
+                          <td className="py-3 fw-semibold">{formatSalary(user.salary)}</td>
+                          <td className="py-3">
+                            <span className={`badge ${user.status === "Active" ? "bg-success" : "bg-secondary"}`}>{user.status}</span>
+                          </td>
+                          <td className="py-3">
+                            <button className="btn btn-sm btn-info text-white me-1" onClick={() => handleView(user)} style={{ borderRadius: '8px' }}>
+                              <i className="bi bi-eye-fill"></i>
+                            </button>
+                            <button className="btn btn-sm btn-warning text-white me-1" onClick={() => handleEdit(user)} style={{ borderRadius: '8px' }}>
+                              <i className="bi bi-pencil-fill"></i>
+                            </button>
+                            <button className="btn btn-sm btn-danger text-white" onClick={() => handleDeleteClick(user)} style={{ borderRadius: '8px' }}>
+                              <i className="bi bi-trash-fill"></i>
+                            </button>
                           </td>
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="7" className="text-center py-5 text-muted">
+                          <i className={`bi ${activeTab === "trainer" ? "bi-person-workspace" : activeTab === "analyst" ? "bi-graph-up" : "bi-chat-heart"} fs-1 d-block mb-3`}></i>
+                          No {activeTab}s found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -1018,37 +818,11 @@ const AdminDashboard = () => {
       </div>
 
       {/* Modals */}
-      <ViewUserModal 
-        show={showViewModal}
-        onClose={() => setShowViewModal(false)}
-        selectedUser={selectedUser}
-        formatDate={formatDate}
-        formatSalary={formatSalary}
-      />
-      
-      <LogoutConfirmationModal 
-        show={showLogoutModal}
-        onClose={cancelLogout}
-        onConfirm={confirmLogout}
-      />
-      
-      <AddUserModal 
-        show={showAddModal}
-        onClose={handleCloseAddModal}
-        onCancel={handleCancelAddModal}
-        onSave={handleSaveAddModal}
-        activeTab={activeTab}
-        newUser={newUser}
-        setNewUser={setNewUser}
-        editingUser={editingUser}
-      />
-
-      <DeleteConfirmationModal
-        show={showDeleteModal}
-        onClose={cancelDelete}
-        onConfirm={confirmDelete}
-        userName={userToDelete?.name}
-      />
+      <ViewUserModal show={showViewModal} onClose={() => setShowViewModal(false)} selectedUser={selectedUser} formatDate={formatDate} formatSalary={formatSalary} />
+      <LogoutConfirmationModal show={showLogoutModal} onClose={cancelLogout} onConfirm={confirmLogout} />
+      <AddUserModal show={showAddModal} onClose={handleCloseAddModal} onCancel={handleCancelAddModal} onSave={handleSaveAddModal}
+        activeTab={activeTab} newUser={newUser} setNewUser={setNewUser} editingUser={editingUser} />
+      <DeleteConfirmationModal show={showDeleteModal} onClose={cancelDelete} onConfirm={confirmDelete} userName={userToDelete?.name} />
     </div>
   );
 };

@@ -265,6 +265,122 @@ function LogoutConfirmationModal({ show, onClose, onConfirm }) {
   );
 }
 
+// ─── View Batch Students Modal ───────────────────────────────────────
+const ViewBatchStudentsModal = ({ show, onClose, batch, students }) => {
+  if (!show || !batch) return null;
+  const enrolledStudents = students.filter(s => s.batch === batch.batchName);
+
+  return (
+    <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
+      <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" onClick={e => e.stopPropagation()}>
+        <div className="modal-content border-0" style={{ borderRadius: '15px' }}>
+          <div className="modal-header border-0 pb-0" style={{ background: '#1a1e2b', borderRadius: '15px 15px 0 0' }}>
+            <h5 className="modal-title text-white fw-bold">
+              <i className="bi bi-people-fill me-2" style={{ color: '#4a9eff' }}></i>
+              Students in {batch.batchName}
+            </h5>
+            <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
+          </div>
+          <div className="modal-body p-0">
+            {/* Batch Summary */}
+            <div className="p-4 border-bottom" style={{ background: '#f8f9fa' }}>
+              <div className="row g-3">
+                <div className="col-md-4">
+                  <div className="d-flex align-items-center">
+                    <div className="rounded-circle d-flex align-items-center justify-content-center me-2" style={{ width: '36px', height: '36px', background: '#e6f0ff', flexShrink: 0 }}>
+                      <i className="bi bi-book" style={{ color: '#4a9eff' }}></i>
+                    </div>
+                    <div>
+                      <small className="text-muted d-block">Course</small>
+                      <span className="fw-semibold">{batch.course}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="d-flex align-items-center">
+                    <div className="rounded-circle d-flex align-items-center justify-content-center me-2" style={{ width: '36px', height: '36px', background: '#e8f5e9', flexShrink: 0 }}>
+                      <i className="bi bi-person" style={{ color: '#28a745' }}></i>
+                    </div>
+                    <div>
+                      <small className="text-muted d-block">Trainer</small>
+                      <span className="fw-semibold">{batch.trainer}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="d-flex align-items-center">
+                    <div className="rounded-circle d-flex align-items-center justify-content-center me-2" style={{ width: '36px', height: '36px', background: '#fff3e0', flexShrink: 0 }}>
+                      <i className="bi bi-people-fill" style={{ color: '#fd7e14' }}></i>
+                    </div>
+                    <div>
+                      <small className="text-muted d-block">Enrolled</small>
+                      <span className="fw-semibold">{enrolledStudents.length} / {batch.maxStudents}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Students List */}
+            {enrolledStudents.length > 0 ? (
+              <div className="table-responsive">
+                <table className="table table-hover mb-0">
+                  <thead style={{ background: '#f8f9fa' }}>
+                    <tr>
+                      <th className="py-3 ps-4 fw-semibold text-muted" style={{ fontSize: '0.85rem' }}>#</th>
+                      <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.85rem' }}>Student Name</th>
+                      <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.85rem' }}>Email</th>
+                      <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.85rem' }}>Phone</th>
+                      <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.85rem' }}>Course</th>
+                      <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.85rem' }}>Enrollment Date</th>
+                      <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.85rem' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {enrolledStudents.map((student, idx) => (
+                      <tr key={student.id} className="align-middle">
+                        <td className="py-3 ps-4 text-muted">{idx + 1}</td>
+                        <td className="py-3">
+                          <div className="d-flex align-items-center">
+                            <div className="rounded-circle d-flex align-items-center justify-content-center me-2"
+                              style={{ width: '32px', height: '32px', background: '#e6f0ff', flexShrink: 0 }}>
+                              <i className="bi bi-person-fill" style={{ color: '#4a9eff', fontSize: '0.85rem' }}></i>
+                            </div>
+                            <span className="fw-semibold">{student.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-3">{student.email}</td>
+                        <td className="py-3">{student.phone}</td>
+                        <td className="py-3">{student.course}</td>
+                        <td className="py-3">{student.enrollmentDate ? new Date(student.enrollmentDate).toLocaleDateString() : '-'}</td>
+                        <td className="py-3">
+                          <span className={`badge ${student.status === "Active" ? "bg-success" : "bg-secondary"}`}>{student.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-5">
+                <div className="rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                  style={{ width: '70px', height: '70px', background: '#f8f9fa' }}>
+                  <i className="bi bi-people" style={{ fontSize: '2rem', color: '#adb5bd' }}></i>
+                </div>
+                <h6 className="fw-bold text-muted mb-1">No Students Enrolled</h6>
+                <p className="text-muted small mb-0">No students have been assigned to this batch yet.</p>
+              </div>
+            )}
+          </div>
+          <div className="modal-footer border-0 pt-0">
+            <button className="btn btn-light px-4 py-2" onClick={onClose}>Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Assign Batch Modal ──────────────────────────────────────────────
 function AssignBatchModal({ show, onClose, students, batches, onAssign }) {
   const [selectedStudentId, setSelectedStudentId] = useState("");
@@ -359,6 +475,8 @@ const CounsellorDashboard = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [showAssignBatchModal, setShowAssignBatchModal] = useState(false);
+  const [showBatchStudentsModal, setShowBatchStudentsModal] = useState(false);
+  const [selectedBatch, setSelectedBatch] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [studentToDelete, setStudentToDelete] = useState(null);
   const [hoveredTab, setHoveredTab] = useState(null);
@@ -1052,6 +1170,7 @@ const CounsellorDashboard = () => {
                     <th className="py-3">Mode</th>
                     <th className="py-3">Status</th>
                     <th className="py-3">Students</th>
+                    <th className="py-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1085,14 +1204,21 @@ const CounsellorDashboard = () => {
                       </td>
                       <td className="py-3">
                         <span className="badge" style={{ background: '#e6f0ff', color: '#4a9eff' }}>
-                          {batch.studentsEnrolled || 0}/{batch.maxStudents}
+                          {students.filter(s => s.batch === batch.batchName).length}/{batch.maxStudents}
                         </span>
+                      </td>
+                      <td className="py-3">
+                        <button className="btn btn-sm btn-info text-white"
+                          style={{ borderRadius: '8px' }}
+                          onClick={() => { setSelectedBatch(batch); setShowBatchStudentsModal(true); }}>
+                          <i className="bi bi-eye-fill me-1"></i>View
+                        </button>
                       </td>
                     </tr>
                   ))}
                   {batches.length === 0 && (
                     <tr>
-                      <td colSpan="7" className="text-center py-5 text-muted">
+                      <td colSpan="8" className="text-center py-5 text-muted">
                         <i className="bi bi-inbox fs-1 d-block mb-3"></i>
                         No batches available.
                       </td>
@@ -1132,6 +1258,11 @@ const CounsellorDashboard = () => {
         students={students}
         batches={batches}
         onAssign={handleAssignBatch} />
+
+      <ViewBatchStudentsModal show={showBatchStudentsModal}
+        onClose={() => { setShowBatchStudentsModal(false); setSelectedBatch(null); }}
+        batch={selectedBatch}
+        students={students} />
     </div>
   );
 };

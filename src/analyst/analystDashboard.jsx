@@ -1,5 +1,4 @@
-// counsellorDashboard.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -7,1074 +6,752 @@ import axios from "axios";
 
 const API_URL = "http://localhost:5000";
 
-const CounsellorDashboard = () => {
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("students");
-  const [students, setStudents] = useState([]);
-  const [batches, setBatches] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
-  const [showAssignBatchModal, setShowAssignBatchModal] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [studentToDelete, setStudentToDelete] = useState(null);
-  const [hoveredTab, setHoveredTab] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-
-  // Get current user info
-  const currentUser = {
-    id: localStorage.getItem("userId"),
-    name: localStorage.getItem("userName") || "Counsellor",
-    email: localStorage.getItem("userEmail") || "counsellor@example.com",
-    role: localStorage.getItem("role") || "COUNSELOR"
-  };
-
-  // Form state for new student
-  const [newStudent, setNewStudent] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    course: "",
-    batch: "",
-    enrollmentDate: new Date().toISOString().split('T')[0],
-    status: "Active",
-    attendance: 0
-  });
-
-  const [editingStudent, setEditingStudent] = useState(null);
-
-  // Fetch students and batches from API
-  const fetchStudents = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`${API_URL}/students`);
-      setStudents(response.data);
-    } catch (error) {
-      console.error("Error fetching students:", error);
-      // If endpoint doesn't exist, use sample data
-      setStudents(sampleStudents);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchBatches = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/batches`);
-      setBatches(response.data);
-    } catch (error) {
-      console.error("Error fetching batches:", error);
-      // If endpoint doesn't exist, use sample data
-      setBatches(sampleBatches);
-    }
-  };
-
-  // Sample data for demonstration
-  const sampleStudents = [
-    {
-      id: "1",
-      name: "John Doe",
-      email: "john@example.com",
-      phone: "+1234567890",
-      course: "Computer Science",
-      batch: "CS-2024-A",
-      enrollmentDate: "2024-01-15",
-      status: "Active",
-      attendance: 85
-    },
-    {
-      id: "2",
-      name: "Jane Smith",
-      email: "jane@example.com",
-      phone: "+1234567891",
-      course: "Business Administration",
-      batch: "BA-2024-B",
-      enrollmentDate: "2024-01-10",
-      status: "Active",
-      attendance: 92
-    },
-    {
-      id: "3",
-      name: "Mike Johnson",
-      email: "mike@example.com",
-      phone: "+1234567892",
-      course: "Data Science",
-      batch: "DS-2024-A",
-      enrollmentDate: "2024-01-05",
-      status: "Active",
-      attendance: 78
-    },
-    {
-      id: "4",
-      name: "Sarah Williams",
-      email: "sarah@example.com",
-      phone: "+1234567893",
-      course: "Psychology",
-      batch: "PSY-2024-A",
-      enrollmentDate: "2024-01-20",
-      status: "Inactive",
-      attendance: 45
-    }
-  ];
-
-  const sampleBatches = [
-    {
-      id: "1",
-      name: "CS-2024-A",
-      course: "Computer Science",
-      startDate: "2024-01-01",
-      endDate: "2024-06-30",
-      studentsCount: 25,
-      maxStudents: 30,
-      status: "Ongoing"
-    },
-    {
-      id: "2",
-      name: "BA-2024-B",
-      course: "Business Administration",
-      startDate: "2024-01-15",
-      endDate: "2024-07-15",
-      studentsCount: 18,
-      maxStudents: 25,
-      status: "Ongoing"
-    },
-    {
-      id: "3",
-      name: "DS-2024-A",
-      course: "Data Science",
-      startDate: "2024-02-01",
-      endDate: "2024-08-01",
-      studentsCount: 12,
-      maxStudents: 20,
-      status: "Upcoming"
-    }
-  ];
-
-  useEffect(() => {
-    fetchStudents();
-    fetchBatches();
-  }, []);
-
-  // Stats calculations
-  const stats = {
-    totalStudents: students.length,
-    activeStudents: students.filter(s => s.status === "Active").length,
-    totalBatches: batches.length,
-    ongoingBatches: batches.filter(b => b.status === "Ongoing").length,
-    avgAttendance: students.length > 0 
-      ? Math.round(students.reduce((sum, s) => sum + (s.attendance || 0), 0) / students.length)
-      : 0
-  };
-
-  // Filter students based on search
-  const filteredStudents = students.filter(student =>
-    student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.course?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.batch?.toLowerCase().includes(searchTerm.toLowerCase())
+// ─── Toast Components ──────────────────────────────────────────────────
+function ToastContainer({ toasts, removeToast }) {
+  return (
+    <div style={{ position: "fixed", top: 20, right: 20, zIndex: 9999, display: "flex", flexDirection: "column", gap: "10px" }}>
+      {toasts.map(toast => (
+        <Toast key={toast.id} toast={toast} onClose={() => removeToast(toast.id)} />
+      ))}
+    </div>
   );
+}
 
-  // Add Student
-  const handleAddStudent = async () => {
-    if (!newStudent.name || !newStudent.email || !newStudent.course) {
-      alert("Please fill all required fields");
-      return;
-    }
+function Toast({ toast, onClose }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3500);
+    return () => clearTimeout(timer);
+  }, [onClose]);
 
-    const studentData = {
-      ...newStudent,
-      id: Date.now().toString(),
-      enrollmentDate: new Date().toISOString().split('T')[0]
-    };
+  const colors = { success: "#28a745", error: "#dc3545", warning: "#fd7e14", info: "#4a9eff" };
+  const icons = { success: "bi-check-circle-fill", error: "bi-x-circle-fill", warning: "bi-exclamation-triangle-fill", info: "bi-info-circle-fill" };
 
-    try {
-      const response = await axios.post(`${API_URL}/students`, studentData);
-      setStudents([...students, response.data]);
-      resetForm();
-      setShowAddStudentModal(false);
-    } catch (error) {
-      console.error("Error adding student:", error);
-      // If API fails, add to local state
-      setStudents([...students, studentData]);
-      resetForm();
-      setShowAddStudentModal(false);
-    }
-  };
+  return (
+    <div style={{
+      background: "white", borderRadius: "12px", padding: "14px 20px", boxShadow: "0 8px 30px rgba(0,0,0,0.12)",
+      display: "flex", alignItems: "center", gap: "12px", minWidth: "300px", maxWidth: "420px",
+      borderLeft: `4px solid ${colors[toast.type] || colors.info}`,
+      animation: "slideInRight 0.35s ease"
+    }}>
+      <i className={`bi ${icons[toast.type] || icons.info}`} style={{ color: colors[toast.type] || colors.info, fontSize: "1.2rem" }}></i>
+      <span style={{ flex: 1, fontSize: "0.9rem", color: "#1a1e2b" }}>{toast.message}</span>
+      <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#aaa", fontSize: "1.1rem" }}>
+        <i className="bi bi-x"></i>
+      </button>
+    </div>
+  );
+}
 
-  // Edit Student
-  const handleEditClick = (student) => {
-    setEditingStudent(student);
-    setNewStudent(student);
-    setShowAddStudentModal(true);
-  };
-
-  const handleUpdateStudent = async () => {
-    try {
-      const response = await axios.put(`${API_URL}/students/${editingStudent.id}`, newStudent);
-      const updatedStudents = students.map(student =>
-        student.id === editingStudent.id ? response.data : student
-      );
-      setStudents(updatedStudents);
-      setEditingStudent(null);
-      resetForm();
-      setShowAddStudentModal(false);
-    } catch (error) {
-      console.error("Error updating student:", error);
-    }
-  };
-
-  // Delete Student
-  const handleDeleteClick = (student) => {
-    setStudentToDelete(student);
-    setShowDeleteModal(true);
-  };
-
-  const confirmDelete = async () => {
-    try {
-      await axios.delete(`${API_URL}/students/${studentToDelete.id}`);
-      const filtered = students.filter(s => s.id !== studentToDelete.id);
-      setStudents(filtered);
-      setShowDeleteModal(false);
-      setStudentToDelete(null);
-    } catch (error) {
-      console.error("Error deleting student:", error);
-    }
-  };
-
-  // View Student Details
-  const handleViewClick = (student) => {
-    setSelectedStudent(student);
-    setShowViewModal(true);
-  };
-
-  // Assign Batch
-  const handleAssignBatch = async (studentId, batchName, course) => {
-    try {
-      const updatedStudent = { ...students.find(s => s.id === studentId), batch: batchName, course };
-      await axios.put(`${API_URL}/students/${studentId}`, updatedStudent);
-      const updatedStudents = students.map(student =>
-        student.id === studentId ? updatedStudent : student
-      );
-      setStudents(updatedStudents);
-      setShowAssignBatchModal(false);
-    } catch (error) {
-      console.error("Error assigning batch:", error);
-    }
-  };
-
-  // Reset form
-  const resetForm = () => {
-    setNewStudent({
-      name: "",
-      email: "",
-      phone: "",
-      course: "",
-      batch: "",
-      enrollmentDate: new Date().toISOString().split('T')[0],
-      status: "Active",
-      attendance: 0
-    });
-  };
-
-  // Logout handlers
-  const handleLogoutClick = () => {
-    setShowLogoutModal(true);
-  };
-
-  const confirmLogout = () => {
-    setShowLogoutModal(false);
-    localStorage.clear();
-    navigate("/login");
-  };
-
-  // Style for hover effects
-  const sidebarStyles = {
-    navItem: {
-      transition: "all 0.3s ease-in-out",
-      cursor: "pointer",
-      position: "relative",
-      overflow: "hidden"
-    },
-    navItemHover: {
-      transform: "translateX(5px)",
-      backgroundColor: "rgba(74, 158, 255, 0.15)",
-      boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
-      borderLeft: "4px solid #4a9eff"
-    },
-    navItemActive: {
-      backgroundColor: "rgba(74, 158, 255, 0.25)",
-      borderLeft: "4px solid #4a9eff",
-      boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)"
-    },
-    logoutHover: {
-      backgroundColor: "rgba(255, 107, 107, 0.15)",
-      color: "#ff6b6b",
-      transform: "translateX(5px)"
-    }
-  };
-
-  // View Modal Component
-  const ViewStudentModal = () => {
-    if (!selectedStudent) return null;
-
-    return (
-      <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setShowViewModal(false)}>
-        <div className="modal-dialog modal-lg modal-dialog-centered" onClick={e => e.stopPropagation()}>
-          <div className="modal-content border-0" style={{ borderRadius: '20px' }}>
-            <div className="modal-header border-0 bg-light">
-              <h5 className="modal-title fw-bold">
-                <i className="bi bi-person-badge me-2"></i>
-                Student Details
-              </h5>
-              <button type="button" className="btn-close" onClick={() => setShowViewModal(false)}></button>
-            </div>
-            <div className="modal-body p-4">
-              <div className="row g-4">
-                {/* Student Header */}
-                <div className="col-12 text-center mb-2">
-                  <div className="bg-primary bg-opacity-10 rounded-circle d-inline-flex p-3 mb-3">
-                    <i className="bi bi-person-circle text-primary" style={{ fontSize: '3rem' }}></i>
-                  </div>
-                  <h4 className="fw-bold mb-1">{selectedStudent.name}</h4>
-                  <span className={`badge ${selectedStudent.status === "Active" ? "bg-success" : "bg-danger"} px-3 py-2`}>
-                    {selectedStudent.status}
-                  </span>
+// ─── View Batch Modal ───────────────────────────────────────────────
+function ViewBatchModal({ show, batch, onClose }) {
+  if (!show || !batch) return null;
+  return (
+    <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
+      <div className="modal-dialog modal-lg modal-dialog-centered" onClick={e => e.stopPropagation()}>
+        <div className="modal-content border-0" style={{ borderRadius: '15px' }}>
+          <div className="modal-header border-0 pb-0" style={{ background: '#1a1e2b', borderRadius: '15px 15px 0 0' }}>
+            <h5 className="modal-title text-white fw-bold">
+              <i className="bi bi-eye me-2" style={{ color: '#4a9eff' }}></i>Batch Details
+            </h5>
+            <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
+          </div>
+          <div className="modal-body p-4">
+            <div className="row g-4">
+              <div className="col-12 text-center mb-2">
+                <div className="rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                  style={{ width: '70px', height: '70px', background: '#e6f0ff' }}>
+                  <i className="bi bi-collection-fill" style={{ fontSize: '2rem', color: '#4a9eff' }}></i>
                 </div>
-
-                {/* Personal Information */}
-                <div className="col-md-6">
-                  <div className="card bg-light border-0" style={{ borderRadius: '15px' }}>
-                    <div className="card-body">
-                      <h6 className="fw-bold mb-3"><i className="bi bi-info-circle me-2"></i>Personal Info</h6>
-                      <div className="mb-2"><span className="text-muted">Email:</span> {selectedStudent.email}</div>
-                      <div className="mb-2"><span className="text-muted">Phone:</span> {selectedStudent.phone}</div>
-                      <div><span className="text-muted">Enrollment:</span> {new Date(selectedStudent.enrollmentDate).toLocaleDateString()}</div>
+                <h4 className="fw-bold mb-1">{batch.batchName}</h4>
+                <span className={`badge ${batch.status === "Ongoing" ? "bg-success" : batch.status === "Completed" ? "bg-secondary" : "bg-primary"} px-3 py-2`}>
+                  {batch.status}
+                </span>
+              </div>
+              <div className="col-md-6">
+                <div className="card bg-light border-0" style={{ borderRadius: '12px' }}>
+                  <div className="card-body">
+                    <h6 className="fw-bold mb-3"><i className="bi bi-info-circle me-2" style={{ color: '#4a9eff' }}></i>Basic Info</h6>
+                    <div className="mb-2"><span className="text-muted">Course:</span> {batch.course}</div>
+                    <div className="mb-2"><span className="text-muted">Trainer:</span> {batch.trainer}</div>
+                    <div><span className="text-muted">Mode:</span> <span className={`badge ms-1 ${batch.mode === "Online" ? "bg-success" : batch.mode === "Offline" ? "bg-primary" : "bg-warning"}`}>{batch.mode}</span></div>
+                  </div>
+                </div>
+              </div>
+              <div className="col-md-6">
+                <div className="card bg-light border-0" style={{ borderRadius: '12px' }}>
+                  <div className="card-body">
+                    <h6 className="fw-bold mb-3"><i className="bi bi-calendar me-2" style={{ color: '#4a9eff' }}></i>Schedule</h6>
+                    <div className="mb-2"><span className="text-muted">Start:</span> {new Date(batch.startDate).toLocaleDateString()}</div>
+                    <div className="mb-2"><span className="text-muted">End:</span> {new Date(batch.endDate).toLocaleDateString()}</div>
+                    <div><span className="text-muted">Duration:</span> {Math.ceil((new Date(batch.endDate) - new Date(batch.startDate)) / (1000 * 60 * 60 * 24))} days</div>
+                  </div>
+                </div>
+              </div>
+              <div className="col-12">
+                <div className="card bg-light border-0" style={{ borderRadius: '12px' }}>
+                  <div className="card-body">
+                    <h6 className="fw-bold mb-3"><i className="bi bi-people me-2" style={{ color: '#4a9eff' }}></i>Enrollment</h6>
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted">Capacity</span>
+                      <span className="fw-semibold">{batch.studentsEnrolled || 0} / {batch.maxStudents}</span>
                     </div>
-                  </div>
-                </div>
-
-                {/* Academic Information */}
-                <div className="col-md-6">
-                  <div className="card bg-light border-0" style={{ borderRadius: '15px' }}>
-                    <div className="card-body">
-                      <h6 className="fw-bold mb-3"><i className="bi bi-book me-2"></i>Academic Info</h6>
-                      <div className="mb-2"><span className="text-muted">Course:</span> {selectedStudent.course}</div>
-                      <div className="mb-2"><span className="text-muted">Batch:</span> {selectedStudent.batch}</div>
-                      <div><span className="text-muted">Attendance:</span> 
-                        <span className={`ms-2 fw-semibold ${selectedStudent.attendance >= 75 ? 'text-success' : selectedStudent.attendance >= 50 ? 'text-warning' : 'text-danger'}`}>
-                          {selectedStudent.attendance}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Attendance Progress */}
-                <div className="col-12">
-                  <div className="card bg-light border-0" style={{ borderRadius: '15px' }}>
-                    <div className="card-body">
-                      <h6 className="fw-bold mb-3"><i className="bi bi-graph-up me-2"></i>Attendance Overview</h6>
-                      <div className="d-flex justify-content-between mb-2">
-                        <span className="text-muted">Current Attendance</span>
-                        <span className="fw-semibold">{selectedStudent.attendance}%</span>
-                      </div>
-                      <div className="progress" style={{ height: '10px' }}>
-                        <div 
-                          className={`progress-bar ${selectedStudent.attendance >= 75 ? 'bg-success' : selectedStudent.attendance >= 50 ? 'bg-warning' : 'bg-danger'}`}
-                          style={{ width: `${selectedStudent.attendance}%` }}
-                        ></div>
-                      </div>
+                    <div className="progress" style={{ height: '8px' }}>
+                      <div className="progress-bar bg-success" style={{ width: `${((batch.studentsEnrolled || 0) / batch.maxStudents) * 100}%` }}></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="modal-footer border-0 bg-light">
-              <button type="button" className="btn btn-secondary" onClick={() => setShowViewModal(false)}>
-                Close
-              </button>
-              <button 
-                type="button" 
-                className="btn btn-primary"
-                onClick={() => {
-                  setShowViewModal(false);
-                  setSelectedStudent(selectedStudent);
-                  setShowAssignBatchModal(true);
-                }}
-              >
-                <i className="bi bi-arrow-repeat me-2"></i>
-                Assign New Batch
-              </button>
-            </div>
+          </div>
+          <div className="modal-footer border-0 pt-0">
+            <button className="btn btn-light px-4 py-2" onClick={onClose}>Close</button>
           </div>
         </div>
       </div>
-    );
-  };
+    </div>
+  );
+}
 
-  // Delete Confirmation Modal
-  const DeleteConfirmationModal = () => (
-    <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setShowDeleteModal(false)}>
+// ─── Delete Confirmation Modal ──────────────────────────────────────
+function DeleteConfirmationModal({ show, item, onClose, onConfirm }) {
+  if (!show) return null;
+  return (
+    <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
       <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
-        <div className="modal-content border-0" style={{ borderRadius: '20px' }}>
+        <div className="modal-content border-0" style={{ borderRadius: '15px' }}>
           <div className="modal-body text-center p-4">
             <div className="mb-4">
               <div className="bg-danger bg-opacity-10 rounded-circle d-inline-flex p-3 mb-3">
                 <i className="bi bi-exclamation-triangle-fill text-danger" style={{ fontSize: '2.5rem' }}></i>
               </div>
-              <h5 className="fw-bold mb-2">Delete Student</h5>
-              <p className="text-muted mb-0">
-                Are you sure you want to delete "{studentToDelete?.name}"? This action cannot be undone.
-              </p>
+              <h5 className="fw-bold mb-2">Delete Batch</h5>
+              <p className="text-muted mb-0">Are you sure you want to delete "{item?.batchName}"? This action cannot be undone.</p>
             </div>
             <div className="d-flex gap-2">
-              <button className="btn btn-light flex-grow-1 py-2" onClick={() => setShowDeleteModal(false)}>
-                Cancel
-              </button>
-              <button className="btn btn-danger flex-grow-1 py-2" onClick={confirmDelete}>
-                Delete
-              </button>
+              <button className="btn btn-light flex-grow-1 py-2" onClick={onClose}>Cancel</button>
+              <button className="btn btn-danger flex-grow-1 py-2" onClick={onConfirm}>Delete</button>
             </div>
           </div>
         </div>
       </div>
     </div>
   );
+}
 
-  // Logout Confirmation Modal
-  const LogoutConfirmationModal = () => (
-    <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setShowLogoutModal(false)}>
+// ─── Logout Confirmation Modal ──────────────────────────────────────
+function LogoutConfirmationModal({ show, onClose, onConfirm }) {
+  if (!show) return null;
+  return (
+    <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
       <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
-        <div className="modal-content border-0" style={{ borderRadius: '20px' }}>
+        <div className="modal-content border-0" style={{ borderRadius: '15px' }}>
           <div className="modal-body text-center p-4">
             <div className="mb-4">
               <div className="bg-warning bg-opacity-10 rounded-circle d-inline-flex p-3 mb-3">
                 <i className="bi bi-box-arrow-right text-warning" style={{ fontSize: '2.5rem' }}></i>
               </div>
               <h5 className="fw-bold mb-2">Confirm Logout</h5>
-              <p className="text-muted mb-0">Are you sure you want to logout from your account?</p>
+              <p className="text-muted mb-0">Are you sure you want to logout?</p>
             </div>
             <div className="d-flex gap-2">
-              <button className="btn btn-light flex-grow-1 py-2" onClick={() => setShowLogoutModal(false)}>
-                Cancel
-              </button>
-              <button className="btn btn-warning flex-grow-1 py-2 text-white" onClick={confirmLogout}>
-                Yes, Logout
-              </button>
+              <button className="btn btn-light flex-grow-1 py-2" onClick={onClose}>Cancel</button>
+              <button className="btn btn-warning flex-grow-1 py-2 text-white" onClick={onConfirm}>Yes, Logout</button>
             </div>
           </div>
         </div>
       </div>
     </div>
   );
+}
 
-  // Add Student Modal
-  const AddStudentModal = () => (
-    <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => {
-      setShowAddStudentModal(false);
-      setEditingStudent(null);
-      resetForm();
-    }}>
-      <div className="modal-dialog modal-dialog-centered modal-lg" onClick={e => e.stopPropagation()}>
+// ─── Reports Coming Soon Modal ──────────────────────────────────────
+function ReportsComingSoonModal({ show, onClose }) {
+  if (!show) return null;
+  return (
+    <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
+      <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
         <div className="modal-content border-0" style={{ borderRadius: '20px' }}>
-          <div className="modal-header border-0 bg-light">
-            <h5 className="modal-title fw-bold">
-              <i className={`bi ${editingStudent ? 'bi-pencil-square' : 'bi-person-plus'} me-2`}></i>
-              {editingStudent ? 'Edit Student' : 'Add New Student'}
-            </h5>
-            <button type="button" className="btn-close" onClick={() => {
-              setShowAddStudentModal(false);
-              setEditingStudent(null);
-              resetForm();
-            }}></button>
-          </div>
-          <div className="modal-body p-4">
-            <div className="row g-3">
-              <div className="col-md-6">
-                <div className="form-floating">
-                  <input 
-                    className="form-control border-0 bg-light"
-                    placeholder="Full Name"
-                    value={newStudent.name}
-                    onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
-                    style={{ borderRadius: '10px' }}
-                    required
-                  />
-                  <label>Full Name *</label>
+          <div className="modal-body text-center p-5">
+            <div className="mb-4 position-relative">
+              <div className="rounded-circle d-inline-flex p-4" style={{ background: '#e6f0ff' }}>
+                <i className="bi bi-bar-chart-steps" style={{ fontSize: '4rem', color: '#4a9eff' }}></i>
+              </div>
+              <div className="position-absolute top-0 start-50 translate-middle">
+                <span className="badge bg-warning text-white px-3 py-2 rounded-pill"><i className="bi bi-stars me-1"></i>New</span>
+              </div>
+            </div>
+            <h3 className="fw-bold mb-3" style={{ background: 'linear-gradient(135deg, #4a9eff, #764ba2)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              Reports Coming Soon!
+            </h3>
+            <p className="text-muted mb-4 px-3">We're building powerful analytics and insights. Stay tuned for performance reports, export features, and more.</p>
+            <div className="row g-3 mb-4">
+              <div className="col-6">
+                <div className="bg-light rounded-3 p-3">
+                  <i className="bi bi-graph-up-arrow text-success fs-4 mb-2"></i>
+                  <h6 className="mb-1">Performance</h6>
+                  <small className="text-muted">Analytics</small>
                 </div>
               </div>
-
-              <div className="col-md-6">
-                <div className="form-floating">
-                  <input 
-                    className="form-control border-0 bg-light"
-                    type="email"
-                    placeholder="Email"
-                    value={newStudent.email}
-                    onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
-                    style={{ borderRadius: '10px' }}
-                    required
-                  />
-                  <label>Email *</label>
-                </div>
-              </div>
-
-              <div className="col-md-6">
-                <div className="form-floating">
-                  <input 
-                    className="form-control border-0 bg-light"
-                    placeholder="Phone"
-                    value={newStudent.phone}
-                    onChange={(e) => setNewStudent({ ...newStudent, phone: e.target.value })}
-                    style={{ borderRadius: '10px' }}
-                  />
-                  <label>Phone</label>
-                </div>
-              </div>
-
-              <div className="col-md-6">
-                <div className="form-floating">
-                  <select 
-                    className="form-control border-0 bg-light"
-                    value={newStudent.course}
-                    onChange={(e) => setNewStudent({ ...newStudent, course: e.target.value })}
-                    style={{ borderRadius: '10px' }}
-                    required
-                  >
-                    <option value="">Select Course</option>
-                    {[...new Set(batches.map(b => b.course))].map(course => (
-                      <option key={course} value={course}>{course}</option>
-                    ))}
-                  </select>
-                  <label>Course *</label>
-                </div>
-              </div>
-
-              <div className="col-md-6">
-                <div className="form-floating">
-                  <select 
-                    className="form-control border-0 bg-light"
-                    value={newStudent.batch}
-                    onChange={(e) => setNewStudent({ ...newStudent, batch: e.target.value })}
-                    style={{ borderRadius: '10px' }}
-                  >
-                    <option value="">Select Batch</option>
-                    {batches.map(batch => (
-                      <option key={batch.id} value={batch.name}>{batch.name}</option>
-                    ))}
-                  </select>
-                  <label>Batch</label>
-                </div>
-              </div>
-
-              <div className="col-md-6">
-                <div className="form-floating">
-                  <select 
-                    className="form-control border-0 bg-light"
-                    value={newStudent.status}
-                    onChange={(e) => setNewStudent({ ...newStudent, status: e.target.value })}
-                    style={{ borderRadius: '10px' }}
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                  <label>Status</label>
+              <div className="col-6">
+                <div className="bg-light rounded-3 p-3">
+                  <i className="bi bi-file-spreadsheet text-primary fs-4 mb-2"></i>
+                  <h6 className="mb-1">Export Data</h6>
+                  <small className="text-muted">PDF / Excel</small>
                 </div>
               </div>
             </div>
-          </div>
-          <div className="modal-footer border-0 bg-light">
-            <button 
-              type="button" 
-              className="btn btn-light px-4 py-2"
-              onClick={() => {
-                setShowAddStudentModal(false);
-                setEditingStudent(null);
-                resetForm();
-              }}
-            >
-              Cancel
+            <div className="mb-4">
+              <div className="d-flex justify-content-between mb-2">
+                <span className="text-muted small">Development Progress</span>
+                <span className="fw-semibold small" style={{ color: '#4a9eff' }}>75%</span>
+              </div>
+              <div className="progress" style={{ height: '8px' }}>
+                <div className="progress-bar" style={{ width: '75%', background: '#4a9eff' }}></div>
+              </div>
+            </div>
+            <button className="btn text-white px-5 py-2 rounded-pill" style={{ background: '#4a9eff' }} onClick={onClose}>
+              <i className="bi bi-bell me-2"></i>Notify Me When Ready
             </button>
-            <button 
-              type="button" 
-              className="btn btn-primary px-4 py-2"
-              onClick={editingStudent ? handleUpdateStudent : handleAddStudent}
-            >
-              <i className={`bi ${editingStudent ? 'bi-check-circle' : 'bi-person-plus'} me-2`}></i>
-              {editingStudent ? 'Update Student' : 'Add Student'}
+            <button className="btn btn-link text-muted d-block mx-auto mt-3 text-decoration-none" onClick={onClose}>
+              Maybe Later <i className="bi bi-arrow-right ms-1"></i>
             </button>
           </div>
         </div>
       </div>
     </div>
   );
+}
 
-  // Assign Batch Modal
-  const AssignBatchModal = () => {
-    const [selectedStudentId, setSelectedStudentId] = useState(selectedStudent?.id || '');
-    const [selectedBatch, setSelectedBatch] = useState('');
-    const [selectedCourse, setSelectedCourse] = useState('');
+// ═══════════════════════════════════════════════════════════════════════
+// ─── MAIN ANALYST DASHBOARD ─────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+const AnalystDashboard = () => {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [batches, setBatches] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showReportsModal, setShowReportsModal] = useState(false);
+  const [selectedBatch, setSelectedBatch] = useState(null);
+  const [batchToDelete, setBatchToDelete] = useState(null);
+  const [hoveredTab, setHoveredTab] = useState(null);
+  const [toasts, setToasts] = useState([]);
 
-    return (
-      <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => {
-        setShowAssignBatchModal(false);
-        setSelectedStudent(null);
-      }}>
-        <div className="modal-dialog modal-dialog-centered" onClick={e => e.stopPropagation()}>
-          <div className="modal-content border-0" style={{ borderRadius: '20px' }}>
-            <div className="modal-header border-0 bg-light">
-              <h5 className="modal-title fw-bold">
-                <i className="bi bi-arrow-repeat me-2"></i>
-                Assign Batch to Student
-              </h5>
-              <button type="button" className="btn-close" onClick={() => {
-                setShowAssignBatchModal(false);
-                setSelectedStudent(null);
-              }}></button>
-            </div>
-            <div className="modal-body p-4">
-              <div className="mb-3">
-                <label className="form-label fw-semibold">Select Student</label>
-                <select 
-                  className="form-select border-0 bg-light py-3"
-                  value={selectedStudentId}
-                  onChange={(e) => setSelectedStudentId(e.target.value)}
-                  style={{ borderRadius: '10px' }}
-                >
-                  <option value="">Choose student...</option>
-                  {students.map(student => (
-                    <option key={student.id} value={student.id}>
-                      {student.name} - {student.course || 'No Course'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label fw-semibold">Select Batch</label>
-                <select 
-                  className="form-select border-0 bg-light py-3"
-                  value={selectedBatch}
-                  onChange={(e) => {
-                    setSelectedBatch(e.target.value);
-                    const batch = batches.find(b => b.name === e.target.value);
-                    if (batch) setSelectedCourse(batch.course);
-                  }}
-                  style={{ borderRadius: '10px' }}
-                >
-                  <option value="">Choose batch...</option>
-                  {batches.map(batch => (
-                    <option key={batch.id} value={batch.name}>
-                      {batch.name} - {batch.course} ({batch.status})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedBatch && (
-                <div className="mb-3">
-                  <label className="form-label fw-semibold">Course</label>
-                  <input 
-                    type="text" 
-                    className="form-control border-0 bg-light py-3"
-                    value={selectedCourse}
-                    readOnly
-                    style={{ borderRadius: '10px' }}
-                  />
-                </div>
-              )}
-            </div>
-            <div className="modal-footer border-0 bg-light">
-              <button 
-                type="button" 
-                className="btn btn-light px-4 py-2"
-                onClick={() => {
-                  setShowAssignBatchModal(false);
-                  setSelectedStudent(null);
-                }}
-              >
-                Cancel
-              </button>
-              <button 
-                type="button" 
-                className="btn btn-primary px-4 py-2"
-                onClick={() => {
-                  if (selectedStudentId && selectedBatch) {
-                    handleAssignBatch(selectedStudentId, selectedBatch, selectedCourse);
-                  } else {
-                    alert('Please select both student and batch');
-                  }
-                }}
-              >
-                <i className="bi bi-check-circle me-2"></i>
-                Assign Batch
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  const currentUser = {
+    id: localStorage.getItem("userId"),
+    name: localStorage.getItem("userName") || "Analyst",
+    email: localStorage.getItem("userEmail") || "analyst@example.com",
+    role: localStorage.getItem("role") || "ANALYST"
   };
 
+  // Form state for batch
+  const [newBatch, setNewBatch] = useState({
+    batchName: "", course: "", trainer: "", startDate: "", endDate: "",
+    maxStudents: "", mode: "Online", status: "Upcoming", studentsEnrolled: 0
+  });
+  const [editingBatch, setEditingBatch] = useState(null);
+
+  // ─── Toast helper ──────────────────────────────────────────────
+  const showToast = useCallback((message, type = "success") => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, message, type }]);
+  }, []);
+  const removeToast = useCallback((id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  // ─── Fetch batches ─────────────────────────────────────────────
+  const fetchBatches = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API_URL}/batches`);
+      setBatches(response.data);
+    } catch (error) {
+      console.error("Error fetching batches:", error);
+      showToast("Failed to fetch batches", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchBatches(); }, []);
+
+  // ─── Stats ─────────────────────────────────────────────────────
+  const stats = {
+    totalBatches: batches.length,
+    ongoingBatches: batches.filter(b => b.status === "Ongoing").length,
+    completedBatches: batches.filter(b => b.status === "Completed").length,
+    upcomingBatches: batches.filter(b => b.status === "Upcoming").length,
+    totalStudents: batches.reduce((sum, b) => sum + (parseInt(b.studentsEnrolled) || 0), 0),
+    occupancyRate: batches.length > 0
+      ? Math.round((batches.reduce((s, b) => s + (parseInt(b.studentsEnrolled) || 0), 0) /
+        batches.reduce((s, b) => s + (parseInt(b.maxStudents) || 0), 0)) * 100) : 0
+  };
+
+  // ─── Create Batch ──────────────────────────────────────────────
+  const handleCreateBatch = async () => {
+    if (!newBatch.batchName || !newBatch.course || !newBatch.trainer || !newBatch.startDate || !newBatch.endDate || !newBatch.maxStudents) {
+      showToast("Please fill all required fields", "warning");
+      return;
+    }
+    const batchData = {
+      ...newBatch, id: Date.now().toString(), studentsEnrolled: 0,
+      createdAt: new Date().toISOString(), createdBy: currentUser.name, createdById: currentUser.id
+    };
+    try {
+      const response = await axios.post(`${API_URL}/batches`, batchData);
+      setBatches([...batches, response.data]);
+      resetForm();
+      setActiveTab("dashboard");
+      showToast("Batch created successfully!", "success");
+    } catch (error) {
+      console.error("Error creating batch:", error);
+      showToast("Failed to create batch", "error");
+    }
+  };
+
+  // ─── Edit Batch ────────────────────────────────────────────────
+  const handleEditClick = (batch) => { setEditingBatch(batch); setNewBatch(batch); setActiveTab("create"); };
+
+  const handleUpdateBatch = async () => {
+    try {
+      const response = await axios.put(`${API_URL}/batches/${editingBatch.id}`, newBatch);
+      setBatches(batches.map(b => b.id === editingBatch.id ? response.data : b));
+      setEditingBatch(null); resetForm(); setActiveTab("dashboard");
+      showToast("Batch updated successfully!", "success");
+    } catch (error) {
+      console.error("Error updating batch:", error);
+      showToast("Failed to update batch", "error");
+    }
+  };
+
+  // ─── Delete Batch ──────────────────────────────────────────────
+  const handleDeleteClick = (batch) => { setBatchToDelete(batch); setShowDeleteModal(true); };
+
+  const confirmDelete = async () => {
+    try {
+      await axios.delete(`${API_URL}/batches/${batchToDelete.id}`);
+      setBatches(batches.filter(b => b.id !== batchToDelete.id));
+      setShowDeleteModal(false); setBatchToDelete(null);
+      showToast("Batch deleted successfully!", "success");
+    } catch (error) {
+      console.error("Error deleting batch:", error);
+      showToast("Failed to delete batch", "error");
+    }
+  };
+
+  // ─── View Batch ────────────────────────────────────────────────
+  const handleViewClick = (batch) => { setSelectedBatch(batch); setShowViewModal(true); };
+
+  // ─── Reset form ────────────────────────────────────────────────
+  const resetForm = () => {
+    setNewBatch({ batchName: "", course: "", trainer: "", startDate: "", endDate: "", maxStudents: "", mode: "Online", status: "Upcoming", studentsEnrolled: 0 });
+  };
+
+  // ─── Logout ────────────────────────────────────────────────────
+  const handleLogoutClick = () => setShowLogoutModal(true);
+  const confirmLogout = () => { setShowLogoutModal(false); localStorage.clear(); navigate("/login"); };
+
+  // ─── Sidebar styles ────────────────────────────────────────────
+  const sidebarStyles = {
+    navItem: { transition: "all 0.3s ease-in-out", cursor: "pointer", position: "relative", overflow: "hidden" },
+    navItemHover: { transform: "translateX(5px)", backgroundColor: "rgba(74,158,255,0.15)", boxShadow: "0 4px 15px rgba(0,0,0,0.2)", borderLeft: "4px solid #4a9eff" },
+    navItemActive: { background: "linear-gradient(90deg, rgba(74,158,255,0.25) 0%, rgba(74,158,255,0.08) 100%)", borderLeft: "4px solid #4a9eff", boxShadow: "0 4px 15px rgba(74,158,255,0.15)", color: "#4a9eff" },
+    logoutHover: { background: "linear-gradient(90deg, rgba(255,107,107,0.18) 0%, rgba(255,107,107,0.05) 100%)", color: "#ff6b6b", transform: "translateX(5px)", borderLeft: "4px solid #ff6b6b" }
+  };
+
+  const sidebarTabs = [
+    { key: "dashboard", label: "Dashboard", icon: "bi-speedometer2", badge: null, color: "#4a9eff" },
+    { key: "create", label: "Create Batch", icon: "bi-plus-circle", badge: null, color: "#28a745" },
+    { key: "batches", label: "All Batches", icon: "bi-collection", badge: batches.length, color: "#fd7e14" },
+    { key: "reports", label: "Reports", icon: "bi-bar-chart-steps", badge: "Soon", color: "#8B5CF6", special: true }
+  ];
+
+  // ═══════════════════════════════════════════════════════════════
+  // ─── RENDER ───────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════
   return (
-    <div className="d-flex" style={{ minHeight: "100vh", background: "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)" }}>
-      
-      {/* Enhanced Sidebar with dark theme */}
-      <div 
-        className="text-white shadow-lg" 
-        style={{ 
-          width: "280px", 
-          minHeight: "100vh", 
-          position: "fixed",
-          background: "linear-gradient(180deg, #0d1b2a 0%, #1b263b 100%)",
-          borderRight: "1px solid rgba(255,255,255,0.1)"
-        }}
-      >
+    <div className="d-flex" style={{ minHeight: "100vh", background: "#f5f7fa" }}>
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+
+      <style>{`
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .sidebar-tab { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; }
+        .sidebar-tab:hover { transform: translateX(6px); }
+      `}</style>
+
+      {/* ─── Sidebar ───────────────────────────────────────────── */}
+      <div className="text-white shadow-lg"
+        style={{ width: "280px", minHeight: "100vh", position: "fixed", background: "linear-gradient(180deg, #1a1e2b 0%, #141722 100%)", borderRight: "1px solid rgba(255,255,255,0.05)" }}>
         <div className="p-4">
           <h4 className="fw-bold mb-4" style={{ color: "#4a9eff" }}>CrewSync</h4>
-          
-          {/* User Profile Section */}
-          <div 
-            className="text-center mb-4 p-3 rounded"
-            style={{ 
-              transition: "all 0.3s ease",
-              cursor: "default",
-              background: hoveredTab === "profile" ? "rgba(255,255,255,0.1)" : "transparent"
-            }}
-            onMouseEnter={() => setHoveredTab("profile")}
-            onMouseLeave={() => setHoveredTab(null)}
-          >
-            <div 
-              className="rounded-circle bg-primary bg-opacity-25 d-flex align-items-center justify-content-center mx-auto mb-3"
-              style={{ 
-                width: "80px", 
-                height: "80px",
-                transition: "all 0.3s ease",
-                transform: hoveredTab === "profile" ? "scale(1.05)" : "scale(1)"
-              }}
-            >
-              <i className="bi bi-person-fill text-white" style={{ fontSize: "2.5rem" }}></i>
+
+          {/* Profile */}
+          <div className="text-center mb-4 p-3 rounded"
+            style={{ transition: "all 0.3s ease", cursor: "default", background: hoveredTab === "profile" ? "rgba(255,255,255,0.05)" : "transparent" }}
+            onMouseEnter={() => setHoveredTab("profile")} onMouseLeave={() => setHoveredTab(null)}>
+            <div className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
+              style={{
+                width: "80px", height: "80px", background: "#2a2f3c", transition: "all 0.3s ease",
+                transform: hoveredTab === "profile" ? "scale(1.05)" : "scale(1)",
+                boxShadow: hoveredTab === "profile" ? "0 0 20px rgba(74,158,255,0.3)" : "none"
+              }}>
+              <i className="bi bi-person-fill" style={{ fontSize: "2.5rem", color: "#4a9eff" }}></i>
             </div>
             <h6 className="text-white mb-1">{currentUser.name}</h6>
             <p className="text-white-50 small mb-2">{currentUser.email}</p>
-            <span className="badge bg-info px-3 py-2">Counsellor</span>
+            <span className="badge px-3 py-2" style={{ background: '#4a9eff' }}>Analyst</span>
           </div>
 
-          <p className="text-white-50 small mb-4">Student Management</p>
+          <p className="text-white-50 small mb-4">Batch Management</p>
 
           <nav className="nav flex-column">
-            {/* Students Tab */}
-            <button 
-              className={`nav-link text-white text-start w-100 border-0 bg-transparent mb-2 py-2 px-3 rounded`}
-              onClick={() => setActiveTab("students")}
-              onMouseEnter={() => setHoveredTab("students")}
-              onMouseLeave={() => setHoveredTab(null)}
-              style={{
-                ...sidebarStyles.navItem,
-                ...(activeTab === "students" ? sidebarStyles.navItemActive : {}),
-                ...(hoveredTab === "students" && activeTab !== "students" ? sidebarStyles.navItemHover : {})
-              }}
-            >
-              <i 
-                className="bi bi-people me-2" 
-                style={{ 
-                  transition: "transform 0.2s ease",
-                  transform: hoveredTab === "students" ? "scale(1.1)" : "scale(1)"
-                }}
-              ></i>
-              Students
-              {hoveredTab === "students" && (
-                <span className="position-absolute end-0 me-3" style={{ fontSize: "0.8rem" }}>
-                  <i className="bi bi-arrow-right"></i>
-                </span>
-              )}
-            </button>
+            {sidebarTabs.map(tab => {
+              const isActive = activeTab === tab.key;
+              const isHovered = hoveredTab === tab.key;
+              const accentColor = isActive ? "#4a9eff" : (isHovered ? tab.color : "white");
 
-            {/* Batches Tab */}
-            <button 
-              className={`nav-link text-white text-start w-100 border-0 bg-transparent mb-2 py-2 px-3 rounded`}
-              onClick={() => setActiveTab("batches")}
-              onMouseEnter={() => setHoveredTab("batches")}
-              onMouseLeave={() => setHoveredTab(null)}
-              style={{
-                ...sidebarStyles.navItem,
-                ...(activeTab === "batches" ? sidebarStyles.navItemActive : {}),
-                ...(hoveredTab === "batches" && activeTab !== "batches" ? sidebarStyles.navItemHover : {})
-              }}
-            >
-              <i 
-                className="bi bi-collection me-2" 
-                style={{ 
-                  transition: "transform 0.2s ease",
-                  transform: hoveredTab === "batches" ? "scale(1.1)" : "scale(1)"
-                }}
-              ></i>
-              Batches
-              {hoveredTab === "batches" && (
-                <span className="position-absolute end-0 me-3" style={{ fontSize: "0.8rem" }}>
-                  <i className="bi bi-arrow-right"></i>
-                </span>
-              )}
-            </button>
+              return (
+                <button key={tab.key}
+                  className="nav-link text-start w-100 border-0 bg-transparent mb-2 py-2 px-3 rounded sidebar-tab"
+                  onClick={() => tab.special ? setShowReportsModal(true) : setActiveTab(tab.key)}
+                  onMouseEnter={() => setHoveredTab(tab.key)}
+                  onMouseLeave={() => setHoveredTab(null)}
+                  style={{
+                    ...sidebarStyles.navItem,
+                    color: accentColor,
+                    ...(isActive && !tab.special ? sidebarStyles.navItemActive : {}),
+                    ...(isHovered && !isActive ? {
+                      ...sidebarStyles.navItemHover,
+                      borderLeftColor: tab.color,
+                      background: `linear-gradient(90deg, ${tab.color}22 0%, transparent 100%)`
+                    } : {})
+                  }}>
+                  <i className={`bi ${tab.icon} me-2`}
+                    style={{
+                      transition: "all 0.25s ease", transform: isHovered ? "scale(1.2)" : "scale(1)",
+                      color: accentColor, filter: isHovered && !isActive ? `drop-shadow(0 0 4px ${tab.color}88)` : "none"
+                    }}></i>
+                  {tab.label}
+                  {tab.badge !== null && (
+                    <span className="badge ms-auto" style={{
+                      background: tab.special ? '#fd7e14' : (isActive ? '#4a9eff' : (isHovered ? tab.color : '#4a9eff')),
+                      transition: 'background 0.3s ease'
+                    }}>{tab.badge}</span>
+                  )}
+                  {isHovered && (
+                    <span className="position-absolute end-0 me-3" style={{ fontSize: "0.8rem", color: tab.color }}>
+                      <i className="bi bi-chevron-right"></i>
+                    </span>
+                  )}
+                </button>
+              );
+            })}
 
-            <hr className="my-4 bg-white-50" />
-            
-            {/* Logout button */}
-            <button 
-              className="nav-link text-white text-start w-100 border-0 bg-transparent py-2 px-3 rounded"
+            <hr className="my-4" style={{ background: 'rgba(255,255,255,0.1)' }} />
+
+            {/* Logout */}
+            <button className="nav-link text-white text-start w-100 border-0 bg-transparent py-2 px-3 rounded sidebar-tab"
               onClick={handleLogoutClick}
-              onMouseEnter={() => setHoveredTab("logout")}
-              onMouseLeave={() => setHoveredTab(null)}
+              onMouseEnter={() => setHoveredTab("logout")} onMouseLeave={() => setHoveredTab(null)}
               style={{
                 ...sidebarStyles.navItem,
                 color: hoveredTab === "logout" ? "#ff6b6b" : "white",
                 ...(hoveredTab === "logout" ? sidebarStyles.logoutHover : {})
-              }}
-            >
-              <i 
-                className="bi bi-box-arrow-right me-2" 
-                style={{ 
-                  transition: "transform 0.2s ease",
-                  transform: hoveredTab === "logout" ? "scale(1.1)" : "scale(1)"
-                }}
-              ></i>
+              }}>
+              <i className="bi bi-box-arrow-right me-2"
+                style={{ transition: "all 0.25s ease", transform: hoveredTab === "logout" ? "scale(1.2)" : "scale(1)" }}></i>
               Logout
               {hoveredTab === "logout" && (
-                <span className="position-absolute end-0 me-3">
-                  <i className="bi bi-arrow-right"></i>
-                </span>
+                <span className="position-absolute end-0 me-3" style={{ color: "#ff6b6b" }}><i className="bi bi-chevron-right"></i></span>
               )}
             </button>
           </nav>
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* ─── Main Content ──────────────────────────────────────── */}
       <div className="flex-grow-1 p-4" style={{ marginLeft: "280px" }}>
-        
-        {/* Header with actions */}
+
+        {/* Header */}
         <div className="d-flex justify-content-between align-items-center mb-4">
-          <h4 className="fw-bold" style={{ color: "#0d1b2a" }}>
-            {activeTab === "students" ? (
-              <><i className="bi bi-people me-2"></i>Student Management</>
-            ) : (
-              <><i className="bi bi-collection me-2"></i>Batch Management</>
-            )}
+          <h4 className="fw-bold" style={{ color: "#1a1e2b" }}>
+            {activeTab === "dashboard" && <><i className="bi bi-speedometer2 me-2" style={{ color: '#4a9eff' }}></i>Analytics Overview</>}
+            {activeTab === "create" && <><i className={`bi ${editingBatch ? "bi-pencil-square" : "bi-plus-circle"} me-2`} style={{ color: '#4a9eff' }}></i>{editingBatch ? "Edit Batch" : "Create New Batch"}</>}
+            {activeTab === "batches" && <><i className="bi bi-collection me-2" style={{ color: '#4a9eff' }}></i>All Batches</>}
           </h4>
-          {activeTab === "students" && (
-            <div className="d-flex gap-2">
-              <div className="input-group" style={{ width: "300px" }}>
-                <span className="input-group-text bg-white border-end-0">
-                  <i className="bi bi-search"></i>
-                </span>
-                <input
-                  type="text"
-                  className="form-control border-start-0"
-                  placeholder="Search students..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <button 
-                className="btn btn-primary d-flex align-items-center"
-                onClick={() => setShowAddStudentModal(true)}
-              >
-                <i className="bi bi-person-plus me-2"></i>
-                Add Student
-              </button>
-              <button 
-                className="btn btn-outline-primary d-flex align-items-center"
-                onClick={() => setShowAssignBatchModal(true)}
-              >
-                <i className="bi bi-arrow-repeat me-2"></i>
-                Assign Batch
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Stats Cards */}
-        <div className="row g-4 mb-4">
-          {/* Total Students */}
-          <div className="col-md-3">
-            <div 
-              className="card p-3 border-0 shadow-lg h-100"
-              style={{ 
-                background: "linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)",
-                borderRadius: "15px",
-                color: "white"
-              }}
-            >
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 className="text-white-50 mb-2">Total Students</h6>
-                  <h3 className="fw-bold mb-0">{stats.totalStudents}</h3>
+        {/* ─── Dashboard Tab ──────────────────────────────────── */}
+        {activeTab === "dashboard" && (
+          <>
+            {/* Stats Row 1 */}
+            <div className="row g-4 mb-4">
+              {[
+                { label: "Total Batches", value: stats.totalBatches, icon: "bi-collection-fill", bg: "#4a9eff" },
+                { label: "Ongoing", value: stats.ongoingBatches, icon: "bi-play-circle-fill", bg: "#28a745" },
+                { label: "Completed", value: stats.completedBatches, icon: "bi-check-circle-fill", bg: "#6c757d" },
+                { label: "Upcoming", value: stats.upcomingBatches, icon: "bi-calendar-event-fill", bg: "#fd7e14" }
+              ].map((card, i) => (
+                <div className="col-md-3" key={i}>
+                  <div className="card p-3 border-0 shadow h-100" style={{ background: card.bg, borderRadius: "12px", color: "white" }}>
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <h6 className="text-white-50 mb-2">{card.label}</h6>
+                        <h3 className="fw-bold mb-0">{card.value}</h3>
+                      </div>
+                      <i className={`bi ${card.icon} fs-1 text-white-50`}></i>
+                    </div>
+                  </div>
                 </div>
-                <i className="bi bi-people-fill fs-1 text-white-50"></i>
+              ))}
+            </div>
+
+            {/* Stats Row 2 */}
+            <div className="row g-4 mb-4">
+              <div className="col-md-6">
+                <div className="card p-3 border-0 shadow h-100" style={{ background: "#EC4899", borderRadius: "12px", color: "white" }}>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h6 className="text-white-50 mb-2">Total Students Enrolled</h6>
+                      <h3 className="fw-bold mb-0">{stats.totalStudents}</h3>
+                    </div>
+                    <i className="bi bi-people-fill fs-1 text-white-50"></i>
+                  </div>
+                </div>
+              </div>
+              <div className="col-md-6">
+                <div className="card p-3 border-0 shadow h-100" style={{ background: "#14B8A6", borderRadius: "12px", color: "white" }}>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h6 className="text-white-50 mb-2">Overall Occupancy Rate</h6>
+                      <h3 className="fw-bold mb-0">{stats.occupancyRate}%</h3>
+                    </div>
+                    <i className="bi bi-pie-chart-fill fs-1 text-white-50"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="row g-4 mb-4">
+              {[
+                { label: "Create Batch", icon: "bi-plus-circle-fill", bg: "#4a9eff", action: () => { resetForm(); setEditingBatch(null); setActiveTab("create"); } },
+                { label: "View Batches", icon: "bi-collection-fill", bg: "#28a745", action: () => setActiveTab("batches") },
+                { label: "Reports", icon: "bi-bar-chart-steps", bg: "#8B5CF6", action: () => setShowReportsModal(true) }
+              ].map((item, idx) => (
+                <div className="col-md-4" key={idx}>
+                  <div className="card border-0 shadow h-100" onClick={item.action}
+                    style={{ borderRadius: '12px', background: 'white', cursor: 'pointer', transition: 'all 0.25s ease' }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = ''; }}>
+                    <div className="card-body text-center p-4">
+                      <div className="rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                        style={{ width: '50px', height: '50px', background: item.bg }}>
+                        <i className={`bi ${item.icon} text-white`} style={{ fontSize: '1.3rem' }}></i>
+                      </div>
+                      <h6 className="fw-bold mb-0" style={{ fontSize: '0.9rem', color: '#1a1e2b' }}>{item.label}</h6>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Recent Batches */}
+            <div className="card border-0 shadow" style={{ borderRadius: '12px', overflow: 'hidden' }}>
+              <div className="card-header bg-white border-0 py-3 px-4">
+                <h5 className="fw-bold mb-0"><i className="bi bi-clock-history me-2" style={{ color: '#4a9eff' }}></i>Recent Batches</h5>
+              </div>
+              <div className="table-responsive">
+                <table className="table table-hover mb-0">
+                  <thead style={{ background: '#f8f9fa' }}>
+                    <tr>
+                      <th className="py-3 ps-4 fw-semibold text-muted" style={{ fontSize: '0.85rem' }}>Batch</th>
+                      <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.85rem' }}>Course</th>
+                      <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.85rem' }}>Trainer</th>
+                      <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.85rem' }}>Status</th>
+                      <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.85rem' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {batches.slice(0, 5).map(batch => (
+                      <tr key={batch.id} className="align-middle">
+                        <td className="py-3 ps-4 fw-semibold">{batch.batchName}</td>
+                        <td className="py-3">{batch.course}</td>
+                        <td className="py-3">{batch.trainer}</td>
+                        <td className="py-3">
+                          <span className={`badge ${batch.status === "Ongoing" ? "bg-success" : batch.status === "Completed" ? "bg-secondary" : "bg-primary"}`}>{batch.status}</span>
+                        </td>
+                        <td className="py-3">
+                          <button className="btn btn-sm btn-outline-primary" onClick={() => handleViewClick(batch)}>
+                            <i className="bi bi-eye"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {batches.length === 0 && (
+                      <tr><td colSpan="5" className="text-center py-4 text-muted">No batches created yet</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ─── Create Batch Tab ───────────────────────────────── */}
+        {activeTab === "create" && (
+          <div className="card border-0 shadow" style={{ borderRadius: '12px' }}>
+            <div className="card-body p-4">
+              <div className="row g-3">
+                <div className="col-md-6">
+                  <label className="form-label fw-semibold">Batch Name <span className="text-danger">*</span></label>
+                  <div className="input-group">
+                    <span className="input-group-text bg-light"><i className="bi bi-hash"></i></span>
+                    <input type="text" className="form-control" placeholder="e.g. BT08"
+                      value={newBatch.batchName} onChange={e => setNewBatch({ ...newBatch, batchName: e.target.value })} required />
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label fw-semibold">Course <span className="text-danger">*</span></label>
+                  <div className="input-group">
+                    <span className="input-group-text bg-light"><i className="bi bi-book"></i></span>
+                    <input type="text" className="form-control" placeholder="e.g. Python"
+                      value={newBatch.course} onChange={e => setNewBatch({ ...newBatch, course: e.target.value })} required />
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label fw-semibold">Trainer <span className="text-danger">*</span></label>
+                  <div className="input-group">
+                    <span className="input-group-text bg-light"><i className="bi bi-person"></i></span>
+                    <input type="text" className="form-control" placeholder="Trainer name"
+                      value={newBatch.trainer} onChange={e => setNewBatch({ ...newBatch, trainer: e.target.value })} required />
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label fw-semibold">Max Students <span className="text-danger">*</span></label>
+                  <div className="input-group">
+                    <span className="input-group-text bg-light"><i className="bi bi-people"></i></span>
+                    <input type="number" className="form-control" placeholder="e.g. 25"
+                      value={newBatch.maxStudents} onChange={e => setNewBatch({ ...newBatch, maxStudents: e.target.value })} required />
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label fw-semibold">Start Date <span className="text-danger">*</span></label>
+                  <input type="date" className="form-control"
+                    value={newBatch.startDate} onChange={e => setNewBatch({ ...newBatch, startDate: e.target.value })} required />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label fw-semibold">End Date <span className="text-danger">*</span></label>
+                  <input type="date" className="form-control"
+                    value={newBatch.endDate} onChange={e => setNewBatch({ ...newBatch, endDate: e.target.value })} required />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label fw-semibold">Mode</label>
+                  <select className="form-select" value={newBatch.mode} onChange={e => setNewBatch({ ...newBatch, mode: e.target.value })}>
+                    <option value="Online">Online</option>
+                    <option value="Offline">Offline</option>
+                    <option value="Hybrid">Hybrid</option>
+                  </select>
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label fw-semibold">Status</label>
+                  <select className="form-select" value={newBatch.status} onChange={e => setNewBatch({ ...newBatch, status: e.target.value })}>
+                    <option value="Upcoming">Upcoming</option>
+                    <option value="Ongoing">Ongoing</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+              <div className="mt-4 d-flex gap-2">
+                {editingBatch ? (
+                  <>
+                    <button className="btn text-white px-4 py-2" style={{ background: '#4a9eff', border: 'none' }} onClick={handleUpdateBatch}>
+                      <i className="bi bi-check-lg me-2"></i>Update Batch
+                    </button>
+                    <button className="btn btn-light px-4 py-2" onClick={() => { setEditingBatch(null); resetForm(); setActiveTab("dashboard"); }}>Cancel</button>
+                  </>
+                ) : (
+                  <button className="btn text-white w-100 py-3 fw-bold" style={{ background: '#4a9eff', border: 'none', borderRadius: '10px' }} onClick={handleCreateBatch}>
+                    <i className="bi bi-plus-lg me-2"></i>Create Batch
+                  </button>
+                )}
               </div>
             </div>
           </div>
+        )}
 
-          {/* Active Students */}
-          <div className="col-md-3">
-            <div 
-              className="card p-3 border-0 shadow-lg h-100"
-              style={{ 
-                background: "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)",
-                borderRadius: "15px",
-                color: "white"
-              }}
-            >
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 className="text-white-50 mb-2">Active Students</h6>
-                  <h3 className="fw-bold mb-0">{stats.activeStudents}</h3>
-                </div>
-                <i className="bi bi-check-circle-fill fs-1 text-white-50"></i>
-              </div>
-            </div>
-          </div>
-
-          {/* Total Batches */}
-          <div className="col-md-3">
-            <div 
-              className="card p-3 border-0 shadow-lg h-100"
-              style={{ 
-                background: "linear-gradient(135deg, #10B981 0%, #059669 100%)",
-                borderRadius: "15px",
-                color: "white"
-              }}
-            >
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 className="text-white-50 mb-2">Total Batches</h6>
-                  <h3 className="fw-bold mb-0">{stats.totalBatches}</h3>
-                </div>
-                <i className="bi bi-collection-fill fs-1 text-white-50"></i>
-              </div>
-            </div>
-          </div>
-
-          {/* Avg Attendance */}
-          <div className="col-md-3">
-            <div 
-              className="card p-3 border-0 shadow-lg h-100"
-              style={{ 
-                background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
-                borderRadius: "15px",
-                color: "white"
-              }}
-            >
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 className="text-white-50 mb-2">Avg Attendance</h6>
-                  <h3 className="fw-bold mb-0">{stats.avgAttendance}%</h3>
-                </div>
-                <i className="bi bi-graph-up-arrow fs-1 text-white-50"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Students Table */}
-        {activeTab === "students" && (
-          <div className="card border-0 shadow-lg" style={{ borderRadius: "15px", overflow: "hidden" }}>
+        {/* ─── All Batches Tab ────────────────────────────────── */}
+        {activeTab === "batches" && (
+          <div className="card border-0 shadow" style={{ borderRadius: '12px', overflow: 'hidden' }}>
             {loading ? (
               <div className="text-center py-5">
-                <div className="spinner-border text-primary" role="status">
-                  <span className="visually-hidden">Loading...</span>
-                </div>
+                <div className="spinner-border" style={{ color: '#4a9eff' }} role="status"><span className="visually-hidden">Loading...</span></div>
               </div>
             ) : (
               <div className="table-responsive">
                 <table className="table table-hover mb-0">
-                  <thead style={{ background: "#0d1b2a", color: "white" }}>
+                  <thead style={{ background: "#1a1e2b", color: "white" }}>
                     <tr>
-                      <th className="py-3 ps-4">Student</th>
-                      <th className="py-3">Contact</th>
+                      <th className="py-3 ps-4">Batch</th>
                       <th className="py-3">Course</th>
-                      <th className="py-3">Batch</th>
-                      <th className="py-3">Enrollment</th>
+                      <th className="py-3">Trainer</th>
+                      <th className="py-3">Students</th>
+                      <th className="py-3">Start</th>
+                      <th className="py-3">End</th>
+                      <th className="py-3">Mode</th>
                       <th className="py-3">Status</th>
-                      <th className="py-3">Attendance</th>
                       <th className="py-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredStudents.map(student => (
-                      <tr key={student.id} className="align-middle">
+                    {batches.map(batch => (
+                      <tr key={batch.id} className="align-middle">
                         <td className="py-3 ps-4">
                           <div className="d-flex align-items-center">
-                            <div 
-                              className="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center me-2"
-                              style={{ width: "35px", height: "35px" }}
-                            >
-                              <i className="bi bi-person-circle text-primary"></i>
+                            <div className="rounded-circle d-flex align-items-center justify-content-center me-2"
+                              style={{ width: '34px', height: '34px', background: '#e6f0ff', flexShrink: 0 }}>
+                              <i className="bi bi-collection-fill" style={{ color: '#4a9eff', fontSize: '0.9rem' }}></i>
                             </div>
-                            <div>
-                              <div className="fw-semibold">{student.name}</div>
-                              <small className="text-muted">{student.email}</small>
-                            </div>
+                            <span className="fw-semibold">{batch.batchName}</span>
                           </div>
                         </td>
-                        <td className="py-3">{student.phone}</td>
-                        <td className="py-3">{student.course}</td>
+                        <td className="py-3">{batch.course}</td>
+                        <td className="py-3">{batch.trainer}</td>
                         <td className="py-3">
-                          <span className="badge bg-info bg-opacity-10 text-info px-3 py-2">
-                            {student.batch}
+                          <span className="badge" style={{ background: '#e6f0ff', color: '#4a9eff' }}>
+                            {batch.studentsEnrolled || 0}/{batch.maxStudents}
                           </span>
                         </td>
-                        <td className="py-3">{new Date(student.enrollmentDate).toLocaleDateString()}</td>
+                        <td className="py-3"><small>{new Date(batch.startDate).toLocaleDateString()}</small></td>
+                        <td className="py-3"><small>{new Date(batch.endDate).toLocaleDateString()}</small></td>
                         <td className="py-3">
-                          <span className={`badge ${student.status === "Active" ? "bg-success" : "bg-danger"} px-3 py-2`}>
-                            {student.status}
+                          <span className={`badge ${batch.mode === "Online" ? "bg-success" : batch.mode === "Offline" ? "bg-primary" : "bg-warning"}`}>
+                            {batch.mode}
                           </span>
                         </td>
                         <td className="py-3">
-                          <div className="d-flex align-items-center gap-2">
-                            <div className="progress" style={{ width: "60px", height: "5px" }}>
-                              <div 
-                                className={`progress-bar ${student.attendance >= 75 ? 'bg-success' : student.attendance >= 50 ? 'bg-warning' : 'bg-danger'}`}
-                                style={{ width: `${student.attendance}%` }}
-                              ></div>
-                            </div>
-                            <span className="small">{student.attendance}%</span>
-                          </div>
+                          <span className={`badge ${batch.status === "Ongoing" ? "bg-success" : batch.status === "Completed" ? "bg-secondary" : "bg-primary"}`}>
+                            {batch.status}
+                          </span>
                         </td>
                         <td className="py-3">
-                          <button 
-                            className="btn btn-sm btn-info text-white me-2"
-                            onClick={() => handleViewClick(student)}
-                            style={{ borderRadius: "8px" }}
-                          >
+                          <button className="btn btn-sm btn-info text-white me-1" onClick={() => handleViewClick(batch)} style={{ borderRadius: '8px' }}>
                             <i className="bi bi-eye-fill"></i>
                           </button>
-                          <button 
-                            className="btn btn-sm btn-warning text-white me-2"
-                            onClick={() => handleEditClick(student)}
-                            style={{ borderRadius: "8px" }}
-                          >
+                          <button className="btn btn-sm btn-warning text-white me-1" onClick={() => handleEditClick(batch)} style={{ borderRadius: '8px' }}>
                             <i className="bi bi-pencil-fill"></i>
                           </button>
-                          <button
-                            className="btn btn-sm btn-danger text-white"
-                            onClick={() => handleDeleteClick(student)}
-                            style={{ borderRadius: "8px" }}
-                          >
+                          <button className="btn btn-sm btn-danger text-white" onClick={() => handleDeleteClick(batch)} style={{ borderRadius: '8px' }}>
                             <i className="bi bi-trash-fill"></i>
                           </button>
                         </td>
                       </tr>
                     ))}
-                    {filteredStudents.length === 0 && (
-                      <tr>
-                        <td colSpan="8" className="text-center py-5 text-muted">
-                          <i className="bi bi-inbox fs-1 d-block mb-3"></i>
-                          No students found. Click "Add Student" to get started.
-                        </td>
-                      </tr>
+                    {batches.length === 0 && (
+                      <tr><td colSpan="9" className="text-center py-5 text-muted"><i className="bi bi-inbox fs-1 d-block mb-3"></i>No batches found. Click "Create Batch" to get started.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -1082,91 +759,15 @@ const CounsellorDashboard = () => {
             )}
           </div>
         )}
-
-        {/* Batches Table */}
-        {activeTab === "batches" && (
-          <div className="card border-0 shadow-lg" style={{ borderRadius: "15px", overflow: "hidden" }}>
-            <div className="table-responsive">
-              <table className="table table-hover mb-0">
-                <thead style={{ background: "#0d1b2a", color: "white" }}>
-                  <tr>
-                    <th className="py-3 ps-4">Batch Name</th>
-                    <th className="py-3">Course</th>
-                    <th className="py-3">Duration</th>
-                    <th className="py-3">Students</th>
-                    <th className="py-3">Capacity</th>
-                    <th className="py-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {batches.map(batch => (
-                    <tr key={batch.id} className="align-middle">
-                      <td className="py-3 ps-4">
-                        <div className="d-flex align-items-center">
-                          <div 
-                            className="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center me-2"
-                            style={{ width: "35px", height: "35px" }}
-                          >
-                            <i className="bi bi-collection-fill text-primary"></i>
-                          </div>
-                          <span className="fw-semibold">{batch.name}</span>
-                        </div>
-                      </td>
-                      <td className="py-3">{batch.course}</td>
-                      <td className="py-3">
-                        <small>
-                          {new Date(batch.startDate).toLocaleDateString()} - {new Date(batch.endDate).toLocaleDateString()}
-                        </small>
-                      </td>
-                      <td className="py-3">
-                        <span className="badge bg-primary bg-opacity-10 text-primary px-3 py-2">
-                          {batch.studentsCount || 0} Students
-                        </span>
-                      </td>
-                      <td className="py-3">
-                        <div className="d-flex align-items-center gap-2">
-                          <div className="progress" style={{ width: "80px", height: "5px" }}>
-                            <div 
-                              className="progress-bar bg-success"
-                              style={{ width: `${((batch.studentsCount || 0) / batch.maxStudents) * 100}%` }}
-                            ></div>
-                          </div>
-                          <small>{batch.studentsCount || 0}/{batch.maxStudents}</small>
-                        </div>
-                      </td>
-                      <td className="py-3">
-                        <span className={`badge ${
-                          batch.status === "Ongoing" ? "bg-success" : 
-                          batch.status === "Upcoming" ? "bg-primary" : "bg-secondary"
-                        } px-3 py-2`}>
-                          {batch.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {batches.length === 0 && (
-                    <tr>
-                      <td colSpan="6" className="text-center py-5 text-muted">
-                        <i className="bi bi-inbox fs-1 d-block mb-3"></i>
-                        No batches available.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Modals */}
-      {showViewModal && <ViewStudentModal />}
-      {showDeleteModal && <DeleteConfirmationModal />}
-      {showLogoutModal && <LogoutConfirmationModal />}
-      {showAddStudentModal && <AddStudentModal />}
-      {showAssignBatchModal && <AssignBatchModal />}
+      <ViewBatchModal show={showViewModal} batch={selectedBatch} onClose={() => setShowViewModal(false)} />
+      <DeleteConfirmationModal show={showDeleteModal} item={batchToDelete} onClose={() => setShowDeleteModal(false)} onConfirm={confirmDelete} />
+      <LogoutConfirmationModal show={showLogoutModal} onClose={() => setShowLogoutModal(false)} onConfirm={confirmLogout} />
+      <ReportsComingSoonModal show={showReportsModal} onClose={() => setShowReportsModal(false)} />
     </div>
   );
 };
 
-export default CounsellorDashboard;
+export default AnalystDashboard;

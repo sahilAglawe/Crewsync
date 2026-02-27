@@ -26,10 +26,10 @@ const Login = () => {
       // Fetch users from db.json using json-server
       const response = await fetch("http://localhost:5000/users");
       const data = await response.json();
-      
+
       // Log the response to verify data structure
       console.log("Fetched users:", data);
-      
+
       setUsers(data);
       setError(""); // Clear any previous errors
     } catch (err) {
@@ -66,10 +66,10 @@ const Login = () => {
       const response = await fetch("http://localhost:5000/users");
       const usersData = await response.json();
 
-      // Find user with matching credentials
+      // Find user with matching email and role
       const user = usersData.find(
-        (u) => 
-          u.email.toLowerCase() === formData.email.toLowerCase() && 
+        (u) =>
+          u.email.toLowerCase() === formData.email.toLowerCase() &&
           u.role === formData.role
       );
 
@@ -78,19 +78,19 @@ const Login = () => {
         if (user.password === formData.password) {
           // Successful login
           console.log("Login successful for user:", user);
-          
+
           // Save login status and user data
           localStorage.setItem("isLoggedIn", "true");
           localStorage.setItem("role", user.role);
           localStorage.setItem("userId", user.id);
           localStorage.setItem("userName", user.name || "");
           localStorage.setItem("userEmail", user.email);
-          
+
           // Store full user data if needed
           localStorage.setItem("userData", JSON.stringify(user));
 
-          // Navigate based on role
-          switch(user.role) {
+          // Navigate based on the user's role
+          switch (user.role) {
             case "ADMIN":
               navigate("/admindashboard");
               break;
@@ -130,7 +130,7 @@ const Login = () => {
     };
 
     let message = "Demo Credentials:\n\n";
-    
+
     if (usersByRole.ADMIN.length > 0) {
       message += "🔹 ADMIN:\n";
       usersByRole.ADMIN.forEach(u => {
@@ -139,7 +139,7 @@ const Login = () => {
         message += `   Name: ${u.name || 'N/A'}\n\n`;
       });
     }
-    
+
     if (usersByRole.ANALYST.length > 0) {
       message += "🔹 ANALYST:\n";
       usersByRole.ANALYST.forEach(u => {
@@ -148,7 +148,7 @@ const Login = () => {
         message += `   Name: ${u.name || 'N/A'}\n\n`;
       });
     }
-    
+
     if (usersByRole.TRAINER.length > 0) {
       message += "🔹 TRAINER:\n";
       usersByRole.TRAINER.forEach(u => {
@@ -157,7 +157,7 @@ const Login = () => {
         message += `   Name: ${u.name || 'N/A'}\n\n`;
       });
     }
-    
+
     if (usersByRole.COUNSELOR.length > 0) {
       message += "🔹 COUNSELOR:\n";
       usersByRole.COUNSELOR.forEach(u => {
@@ -277,6 +277,7 @@ const Login = () => {
             </select>
           </div>
 
+
           <button
             type="submit"
             className="btn btn-primary w-100 py-2 fw-bold"
@@ -286,7 +287,7 @@ const Login = () => {
           </button>
         </form>
 
-        
+
 
         {/* Server Status */}
         <div className="text-center mt-2">
