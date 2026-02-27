@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import 'bootstrap/dist/css/bootstrap.min.css';
 import AdminDashboard from './admin/AdminDashboard.jsx';
 import AnalystDashboard from './analyst/analystDashboard.jsx';
+import axios from 'axios';
+import CounsellorDashboard from './counsellor/counsellorDashboard.jsx';
 
 function App() {
  
@@ -27,6 +29,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/admindashboard" element={<AdminDashboard />} />
         <Route path="/analystdashboard" element={<AnalystDashboard />} />
+        <Route path="/counsellordashboard" element={<CounsellorDashboard />} /> 
       </Routes>
     </BrowserRouter>
     </>

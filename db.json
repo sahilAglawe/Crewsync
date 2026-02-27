@@ -1,6 +1,14 @@
 {
   "users": [
     {
+      "id": "admin1",
+      "name": "Admin User",
+      "email": "admin@gmail.com",
+      "role": "ADMIN",
+      "status": "Active",
+      "password": "admin123"
+    },
+    {
       "id": "1",
       "name": "Jane Smith",
       "email": "jane@example.com",
@@ -112,7 +120,7 @@
       "maxStudents": "25",
       "mode": "Offline",
       "status": "Completed",
-      "studentsEnrolled": 0,
+      "studentsEnrolled": 1,
       "createdAt": "2026-02-26T09:28:35.780Z",
       "createdBy": "vijay",
       "createdById": "1772089388234"
@@ -142,10 +150,33 @@
       "maxStudents": "25",
       "mode": "Offline",
       "status": "Ongoing",
-      "studentsEnrolled": 0,
+      "studentsEnrolled": 1,
       "createdAt": "2026-02-27T04:58:13.382Z",
       "createdBy": "vijay",
       "createdById": "1772089388234"
+    }
+  ],
+  "students": [
+    {
+      "id": "1772176481866",
+      "name": "piyush",
+      "email": "piyush@gmail.com",
+      "phone": "87974985789",
+      "course": "python",
+      "batch": "BT05",
+      "enrollmentDate": "2026-02-27",
+      "status": "Active",
+      "attendance": 1
+    },
+    {
+      "id": "1772177500968",
+      "name": "rash",
+      "email": "rash@gmail.com",
+      "phone": "857897",
+      "course": "springboot",
+      "batch": "BT07",
+      "enrollmentDate": "2026-02-27",
+      "status": "Active"
     }
   ]
 }
