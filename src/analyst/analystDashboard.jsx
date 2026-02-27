@@ -238,6 +238,7 @@ const AnalystDashboard = () => {
   const [batchToDelete, setBatchToDelete] = useState(null);
   const [hoveredTab, setHoveredTab] = useState(null);
   const [toasts, setToasts] = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const currentUser = {
     id: localStorage.getItem("userId"),
@@ -276,7 +277,9 @@ const AnalystDashboard = () => {
     }
   };
 
-  useEffect(() => { fetchBatches(); }, []);
+  useEffect(() => {
+    fetchBatches();
+  }, []);
 
   // ─── Stats ─────────────────────────────────────────────────────
   const stats = {
@@ -379,33 +382,64 @@ const AnalystDashboard = () => {
       <style>{`
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         .sidebar-tab { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; }
-        .sidebar-tab:hover { transform: translateX(6px); }
+        .sidebar-tab:hover { transform: translateX(4px); }
       `}</style>
 
       {/* ─── Sidebar ───────────────────────────────────────────── */}
       <div className="text-white shadow-lg"
-        style={{ width: "280px", minHeight: "100vh", position: "fixed", background: "linear-gradient(180deg, #1a1e2b 0%, #141722 100%)", borderRight: "1px solid rgba(255,255,255,0.05)" }}>
-        <div className="p-4">
-          <h4 className="fw-bold mb-4" style={{ color: "#4a9eff" }}>CrewSync</h4>
+        style={{
+          width: sidebarOpen ? "280px" : "70px",
+          minHeight: "100vh", position: "fixed",
+          background: "linear-gradient(180deg, #1a1e2b 0%, #141722 100%)",
+          borderRight: "1px solid rgba(255,255,255,0.05)",
+          transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          zIndex: 1050, overflowX: "hidden", overflowY: "auto"
+        }}>
+        <div style={{ padding: sidebarOpen ? "1.5rem" : "1.5rem 0.7rem" }}>
+
+          {/* Header: CrewSync + Toggle */}
+          <div className="d-flex align-items-center mb-4" style={{ justifyContent: sidebarOpen ? "space-between" : "center" }}>
+            {sidebarOpen && <h4 className="fw-bold mb-0" style={{ color: "#4a9eff", whiteSpace: "nowrap" }}>CrewSync</h4>}
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+              style={{
+                background: "rgba(255,255,255,0.08)", border: "none", color: "#4a9eff",
+                width: "38px", height: "38px", borderRadius: "10px", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "1.2rem", transition: "all 0.2s ease", flexShrink: 0
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.15)"; e.currentTarget.style.transform = "scale(1.1)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; e.currentTarget.style.transform = "scale(1)"; }}
+            >
+              <i className={`bi ${sidebarOpen ? "bi-chevron-left" : "bi-list"}`}></i>
+            </button>
+          </div>
 
           {/* Profile */}
-          <div className="text-center mb-4 p-3 rounded"
+          <div className={`${sidebarOpen ? "text-center" : "d-flex justify-content-center"} mb-4 p-2 rounded`}
             style={{ transition: "all 0.3s ease", cursor: "default", background: hoveredTab === "profile" ? "rgba(255,255,255,0.05)" : "transparent" }}
-            onMouseEnter={() => setHoveredTab("profile")} onMouseLeave={() => setHoveredTab(null)}>
-            <div className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
+            onMouseEnter={() => setHoveredTab("profile")} onMouseLeave={() => setHoveredTab(null)}
+            title={!sidebarOpen ? `${currentUser.name} (Analyst)` : undefined}>
+            <div className="rounded-circle d-flex align-items-center justify-content-center mx-auto"
               style={{
-                width: "80px", height: "80px", background: "#2a2f3c", transition: "all 0.3s ease",
+                width: sidebarOpen ? "80px" : "40px", height: sidebarOpen ? "80px" : "40px",
+                background: "#2a2f3c", transition: "all 0.3s ease",
                 transform: hoveredTab === "profile" ? "scale(1.05)" : "scale(1)",
                 boxShadow: hoveredTab === "profile" ? "0 0 20px rgba(74,158,255,0.3)" : "none"
               }}>
-              <i className="bi bi-person-fill" style={{ fontSize: "2.5rem", color: "#4a9eff" }}></i>
+              <i className="bi bi-person-fill" style={{ fontSize: sidebarOpen ? "2.5rem" : "1.2rem", color: "#4a9eff" }}></i>
             </div>
-            <h6 className="text-white mb-1">{currentUser.name}</h6>
-            <p className="text-white-50 small mb-2">{currentUser.email}</p>
-            <span className="badge px-3 py-2" style={{ background: '#4a9eff' }}>Analyst</span>
+            {sidebarOpen && (
+              <>
+                <h6 className="text-white mb-1 mt-3">{currentUser.name}</h6>
+                <p className="text-white-50 small mb-2">{currentUser.email}</p>
+                <span className="badge px-3 py-2" style={{ background: '#4a9eff' }}>Analyst</span>
+              </>
+            )}
           </div>
 
-          <p className="text-white-50 small mb-4">Batch Management</p>
+          {sidebarOpen && <p className="text-white-50 small mb-4">Batch Management</p>}
 
           <nav className="nav flex-column">
             {sidebarTabs.map(tab => {
@@ -415,10 +449,11 @@ const AnalystDashboard = () => {
 
               return (
                 <button key={tab.key}
-                  className="nav-link text-start w-100 border-0 bg-transparent mb-2 py-2 px-3 rounded sidebar-tab"
-                  onClick={() => tab.special ? setShowReportsModal(true) : setActiveTab(tab.key)}
+                  className={`nav-link border-0 bg-transparent mb-2 py-2 rounded sidebar-tab ${sidebarOpen ? "text-start w-100 px-3" : "d-flex justify-content-center w-100 px-0"}`}
+                  onClick={() => { tab.special ? setShowReportsModal(true) : setActiveTab(tab.key); }}
                   onMouseEnter={() => setHoveredTab(tab.key)}
                   onMouseLeave={() => setHoveredTab(null)}
+                  title={!sidebarOpen ? tab.label : undefined}
                   style={{
                     ...sidebarStyles.navItem,
                     color: accentColor,
@@ -429,51 +464,48 @@ const AnalystDashboard = () => {
                       background: `linear-gradient(90deg, ${tab.color}22 0%, transparent 100%)`
                     } : {})
                   }}>
-                  <i className={`bi ${tab.icon} me-2`}
+                  <i className={`bi ${tab.icon} ${sidebarOpen ? "me-2" : ""}`}
                     style={{
+                      fontSize: sidebarOpen ? undefined : "1.2rem",
                       transition: "all 0.25s ease", transform: isHovered ? "scale(1.2)" : "scale(1)",
                       color: accentColor, filter: isHovered && !isActive ? `drop-shadow(0 0 4px ${tab.color}88)` : "none"
                     }}></i>
-                  {tab.label}
-                  {tab.badge !== null && (
+                  {sidebarOpen && tab.label}
+                  {sidebarOpen && tab.badge !== null && (
                     <span className="badge ms-auto" style={{
                       background: tab.special ? '#fd7e14' : (isActive ? '#4a9eff' : (isHovered ? tab.color : '#4a9eff')),
                       transition: 'background 0.3s ease'
                     }}>{tab.badge}</span>
                   )}
-                  {isHovered && (
-                    <span className="position-absolute end-0 me-3" style={{ fontSize: "0.8rem", color: tab.color }}>
-                      <i className="bi bi-chevron-right"></i>
-                    </span>
-                  )}
                 </button>
               );
             })}
 
-            <hr className="my-4" style={{ background: 'rgba(255,255,255,0.1)' }} />
+            <hr className="my-3" style={{ background: 'rgba(255,255,255,0.1)' }} />
 
             {/* Logout */}
-            <button className="nav-link text-white text-start w-100 border-0 bg-transparent py-2 px-3 rounded sidebar-tab"
+            <button className={`nav-link border-0 bg-transparent py-2 rounded sidebar-tab ${sidebarOpen ? "text-start w-100 px-3" : "d-flex justify-content-center w-100 px-0"}`}
               onClick={handleLogoutClick}
               onMouseEnter={() => setHoveredTab("logout")} onMouseLeave={() => setHoveredTab(null)}
+              title={!sidebarOpen ? "Logout" : undefined}
               style={{
                 ...sidebarStyles.navItem,
                 color: hoveredTab === "logout" ? "#ff6b6b" : "white",
                 ...(hoveredTab === "logout" ? sidebarStyles.logoutHover : {})
               }}>
-              <i className="bi bi-box-arrow-right me-2"
-                style={{ transition: "all 0.25s ease", transform: hoveredTab === "logout" ? "scale(1.2)" : "scale(1)" }}></i>
-              Logout
-              {hoveredTab === "logout" && (
-                <span className="position-absolute end-0 me-3" style={{ color: "#ff6b6b" }}><i className="bi bi-chevron-right"></i></span>
-              )}
+              <i className={`bi bi-box-arrow-right ${sidebarOpen ? "me-2" : ""}`}
+                style={{ fontSize: sidebarOpen ? undefined : "1.2rem", transition: "all 0.25s ease", transform: hoveredTab === "logout" ? "scale(1.2)" : "scale(1)" }}></i>
+              {sidebarOpen && "Logout"}
             </button>
           </nav>
         </div>
       </div>
 
       {/* ─── Main Content ──────────────────────────────────────── */}
-      <div className="flex-grow-1 p-4" style={{ marginLeft: "280px" }}>
+      <div className="flex-grow-1 p-4" style={{
+        marginLeft: sidebarOpen ? "280px" : "70px",
+        transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+      }}>
 
         {/* Header */}
         <div className="d-flex justify-content-between align-items-center mb-4">

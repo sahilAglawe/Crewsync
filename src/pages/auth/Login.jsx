@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
+import { toast } from "react-toastify";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -88,6 +89,21 @@ const Login = () => {
 
           // Store full user data if needed
           localStorage.setItem("userData", JSON.stringify(user));
+          localStorage.setItem("loginSuccess", "true");
+
+          // Show success toast notification
+          const roleName = user.role.charAt(0) + user.role.slice(1).toLowerCase();
+          toast.success(
+            `🎉 Welcome back, ${user.name || "User"}! Logged in as ${roleName}.`,
+            {
+              position: "top-right",
+              autoClose: 3000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+            }
+          );
 
           // Navigate based on the user's role
           switch (user.role) {
