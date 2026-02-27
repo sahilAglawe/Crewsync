@@ -113,7 +113,7 @@
       "maxStudents": "25",
       "mode": "Hybrid",
       "status": "Upcoming",
-      "studentsEnrolled": 0,
+      "studentsEnrolled": 1,
       "createdAt": "2026-02-26T09:30:12.196Z",
       "createdBy": "vijay",
       "createdById": "1772089388234"
@@ -140,8 +140,8 @@
       "name": "rash",
       "email": "rash@gmail.com",
       "phone": "857897",
-      "course": "springboot",
-      "batch": "BT07",
+      "course": "Data science",
+      "batch": "BT02",
       "enrollmentDate": "2026-02-27",
       "status": "Active"
     },
@@ -153,6 +153,16 @@
       "course": "springboot",
       "batch": "BT07",
       "enrollmentDate": "2026-02-07",
+      "status": "Active"
+    },
+    {
+      "id": "1772188244815",
+      "name": "sandeep",
+      "email": "sandeep@gmail.com",
+      "phone": "8847874287",
+      "course": "cloud",
+      "batch": "",
+      "enrollmentDate": "2026-02-21",
       "status": "Active"
     }
   ]
