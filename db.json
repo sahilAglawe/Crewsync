@@ -88,7 +88,7 @@
       "sessionMode": ""
     },
     {
-      "id": 1772089388234,
+      "id": "1772089388234",
       "name": "vijay",
       "email": "vijay@gmail.com",
       "phone": "4444455555",
@@ -129,6 +129,21 @@
       "status": "Upcoming",
       "studentsEnrolled": 0,
       "createdAt": "2026-02-26T09:30:12.196Z",
+      "createdBy": "vijay",
+      "createdById": "1772089388234"
+    },
+    {
+      "id": "1772168293382",
+      "batchName": "BT07",
+      "course": "springboot",
+      "trainer": "suresh",
+      "startDate": "2026-02-27",
+      "endDate": "2026-03-14",
+      "maxStudents": "25",
+      "mode": "Offline",
+      "status": "Ongoing",
+      "studentsEnrolled": 0,
+      "createdAt": "2026-02-27T04:58:13.382Z",
       "createdBy": "vijay",
       "createdById": "1772089388234"
     }
