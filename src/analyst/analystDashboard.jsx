@@ -17,6 +17,7 @@ const AnalystDashboard = () => {
   const [showReportsModal, setShowReportsModal] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [batchToDelete, setBatchToDelete] = useState(null);
+  const [hoveredTab, setHoveredTab] = useState(null);
 
   // Get current user info
   const currentUser = {
@@ -455,10 +456,40 @@ const AnalystDashboard = () => {
     </div>
   );
 
+  // Style for hover effects
+  const sidebarStyles = {
+    navItem: {
+      transition: "all 0.3s ease-in-out",
+      cursor: "pointer",
+      position: "relative",
+      overflow: "hidden"
+    },
+    navItemHover: {
+      transform: "translateX(5px)",
+      backgroundColor: "rgba(74, 158, 255, 0.15)",
+      boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
+      borderLeft: "4px solid #4a9eff"
+    },
+    navItemActive: {
+      backgroundColor: "rgba(74, 158, 255, 0.25)",
+      borderLeft: "4px solid #4a9eff",
+      boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)"
+    },
+    iconHover: {
+      transform: "scale(1.1)",
+      transition: "transform 0.2s ease"
+    },
+    logoutHover: {
+      backgroundColor: "rgba(255, 107, 107, 0.15)",
+      color: "#ff6b6b",
+      transform: "translateX(5px)"
+    }
+  };
+
   return (
     <div className="d-flex" style={{ minHeight: "100vh", background: "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)" }}>
       
-      {/* Enhanced Sidebar with gradient - Matching AdminDashboard */}
+      {/* Enhanced Sidebar with hover effects */}
       <div 
         className="text-white shadow-lg" 
         style={{ 
@@ -472,11 +503,25 @@ const AnalystDashboard = () => {
         <div className="p-4">
           <h4 className="fw-bold mb-4" style={{ color: "#4a9eff" }}>CrewSync</h4>
           
-          {/* User Profile Section */}
-          <div className="text-center mb-4">
+          {/* User Profile Section with hover effect */}
+          <div 
+            className="text-center mb-4 p-3 rounded"
+            style={{ 
+              transition: "all 0.3s ease",
+              cursor: "default",
+              background: hoveredTab === "profile" ? "rgba(255,255,255,0.1)" : "transparent"
+            }}
+            onMouseEnter={() => setHoveredTab("profile")}
+            onMouseLeave={() => setHoveredTab(null)}
+          >
             <div 
               className="rounded-circle bg-primary bg-opacity-25 d-flex align-items-center justify-content-center mx-auto mb-3"
-              style={{ width: "80px", height: "80px" }}
+              style={{ 
+                width: "80px", 
+                height: "80px",
+                transition: "all 0.3s ease",
+                transform: hoveredTab === "profile" ? "scale(1.05)" : "scale(1)"
+              }}
             >
               <i className="bi bi-person-fill text-white" style={{ fontSize: "2.5rem" }}></i>
             </div>
@@ -488,71 +533,164 @@ const AnalystDashboard = () => {
           <p className="text-white-50 small mb-4">Batch Management</p>
 
           <nav className="nav flex-column">
+            {/* Dashboard Tab */}
             <button 
-              className={`nav-link text-white text-start w-100 border-0 bg-transparent mb-2 py-2 px-3 rounded ${
-                activeTab === "dashboard" ? "bg-primary bg-opacity-25" : "hover-bg"
-              }`}
+              className={`nav-link text-white text-start w-100 border-0 bg-transparent mb-2 py-2 px-3 rounded`}
               onClick={() => setActiveTab("dashboard")}
-              style={{ transition: "all 0.3s" }}
+              onMouseEnter={() => setHoveredTab("dashboard")}
+              onMouseLeave={() => setHoveredTab(null)}
+              style={{
+                ...sidebarStyles.navItem,
+                ...(activeTab === "dashboard" ? sidebarStyles.navItemActive : {}),
+                ...(hoveredTab === "dashboard" && activeTab !== "dashboard" ? sidebarStyles.navItemHover : {})
+              }}
             >
-              <i className="bi bi-speedometer2 me-2"></i>
+              <i 
+                className="bi bi-speedometer2 me-2" 
+                style={{ 
+                  transition: "transform 0.2s ease",
+                  transform: hoveredTab === "dashboard" ? "scale(1.1)" : "scale(1)"
+                }}
+              ></i>
               Dashboard
+              {hoveredTab === "dashboard" && (
+                <span className="position-absolute end-0 me-3" style={{ fontSize: "0.8rem" }}>
+                  <i className="bi bi-arrow-right"></i>
+                </span>
+              )}
             </button>
 
+            {/* Create Batch Tab */}
             <button 
-              className={`nav-link text-white text-start w-100 border-0 bg-transparent mb-2 py-2 px-3 rounded ${
-                activeTab === "create" ? "bg-primary bg-opacity-25" : "hover-bg"
-              }`}
+              className={`nav-link text-white text-start w-100 border-0 bg-transparent mb-2 py-2 px-3 rounded`}
               onClick={() => {
                 resetForm();
                 setEditingBatch(null);
                 setActiveTab("create");
               }}
+              onMouseEnter={() => setHoveredTab("create")}
+              onMouseLeave={() => setHoveredTab(null)}
+              style={{
+                ...sidebarStyles.navItem,
+                ...(activeTab === "create" ? sidebarStyles.navItemActive : {}),
+                ...(hoveredTab === "create" && activeTab !== "create" ? sidebarStyles.navItemHover : {})
+              }}
             >
-              <i className="bi bi-plus-circle me-2"></i>
+              <i 
+                className="bi bi-plus-circle me-2" 
+                style={{ 
+                  transition: "transform 0.2s ease",
+                  transform: hoveredTab === "create" ? "scale(1.1)" : "scale(1)"
+                }}
+              ></i>
               Create Batch
+              {hoveredTab === "create" && (
+                <span className="position-absolute end-0 me-3" style={{ fontSize: "0.8rem" }}>
+                  <i className="bi bi-arrow-right"></i>
+                </span>
+              )}
             </button>
 
+            {/* All Batches Tab */}
             <button 
-              className={`nav-link text-white text-start w-100 border-0 bg-transparent mb-2 py-2 px-3 rounded ${
-                activeTab === "batches" ? "bg-primary bg-opacity-25" : "hover-bg"
-              }`}
+              className={`nav-link text-white text-start w-100 border-0 bg-transparent mb-2 py-2 px-3 rounded`}
               onClick={() => setActiveTab("batches")}
+              onMouseEnter={() => setHoveredTab("batches")}
+              onMouseLeave={() => setHoveredTab(null)}
+              style={{
+                ...sidebarStyles.navItem,
+                ...(activeTab === "batches" ? sidebarStyles.navItemActive : {}),
+                ...(hoveredTab === "batches" && activeTab !== "batches" ? sidebarStyles.navItemHover : {})
+              }}
             >
-              <i className="bi bi-collection me-2"></i>
+              <i 
+                className="bi bi-collection me-2" 
+                style={{ 
+                  transition: "transform 0.2s ease",
+                  transform: hoveredTab === "batches" ? "scale(1.1)" : "scale(1)"
+                }}
+              ></i>
               All Batches
+              {hoveredTab === "batches" && (
+                <span className="position-absolute end-0 me-3" style={{ fontSize: "0.8rem" }}>
+                  <i className="bi bi-arrow-right"></i>
+                </span>
+              )}
             </button>
 
-            {/* New Reports Section */}
+            {/* Reports Section with enhanced hover */}
             <button 
               className="nav-link text-white text-start w-100 border-0 bg-transparent mb-2 py-2 px-3 rounded position-relative"
               onClick={handleReportsClick}
-              style={{ 
-                background: "linear-gradient(90deg, rgba(74,158,255,0.1) 0%, rgba(74,158,255,0) 100%)",
-                borderLeft: "3px solid #4a9eff"
+              onMouseEnter={() => setHoveredTab("reports")}
+              onMouseLeave={() => setHoveredTab(null)}
+              style={{
+                ...sidebarStyles.navItem,
+                background: hoveredTab === "reports" 
+                  ? "linear-gradient(90deg, rgba(74,158,255,0.2) 0%, rgba(74,158,255,0.1) 100%)"
+                  : "linear-gradient(90deg, rgba(74,158,255,0.1) 0%, rgba(74,158,255,0) 100%)",
+                borderLeft: hoveredTab === "reports" ? "4px solid #4a9eff" : "3px solid #4a9eff",
+                transform: hoveredTab === "reports" ? "translateX(5px)" : "translateX(0)"
               }}
             >
               <div className="d-flex align-items-center justify-content-between">
                 <div>
-                  <i className="bi bi-bar-chart-steps me-2" style={{ color: "#4a9eff" }}></i>
+                  <i 
+                    className="bi bi-bar-chart-steps me-2" 
+                    style={{ 
+                      color: "#4a9eff",
+                      transition: "transform 0.2s ease",
+                      transform: hoveredTab === "reports" ? "scale(1.1)" : "scale(1)"
+                    }}
+                  ></i>
                   Reports
                 </div>
-                <span className="badge bg-warning text-dark rounded-pill" style={{ fontSize: '0.7rem' }}>
+                <span 
+                  className="badge bg-warning text-dark rounded-pill" 
+                  style={{ 
+                    fontSize: '0.7rem',
+                    transition: "all 0.2s ease",
+                    transform: hoveredTab === "reports" ? "scale(1.05)" : "scale(1)"
+                  }}
+                >
                   <i className="bi bi-stars me-1"></i>
                   Soon
                 </span>
               </div>
+              {hoveredTab === "reports" && (
+                <span className="position-absolute end-0 me-3" style={{ fontSize: "0.8rem" }}>
+                  <i className="bi bi-arrow-right"></i>
+                </span>
+              )}
             </button>
 
             <hr className="my-4 bg-white-50" />
             
+            {/* Logout button with red hover effect */}
             <button 
-              className="nav-link text-white text-start w-100 border-0 bg-transparent py-2 px-3 rounded hover-bg-danger"
+              className="nav-link text-white text-start w-100 border-0 bg-transparent py-2 px-3 rounded"
               onClick={handleLogoutClick}
-              style={{ color: '#ff6b6b' }}
+              onMouseEnter={() => setHoveredTab("logout")}
+              onMouseLeave={() => setHoveredTab(null)}
+              style={{
+                ...sidebarStyles.navItem,
+                color: hoveredTab === "logout" ? "#ff6b6b" : "white",
+                ...(hoveredTab === "logout" ? sidebarStyles.logoutHover : {})
+              }}
             >
-              <i className="bi bi-box-arrow-right me-2"></i>
+              <i 
+                className="bi bi-box-arrow-right me-2" 
+                style={{ 
+                  transition: "transform 0.2s ease",
+                  transform: hoveredTab === "logout" ? "scale(1.1)" : "scale(1)"
+                }}
+              ></i>
               Logout
+              {hoveredTab === "logout" && (
+                <span className="position-absolute end-0 me-3">
+                  <i className="bi bi-arrow-right"></i>
+                </span>
+              )}
             </button>
           </nav>
         </div>
