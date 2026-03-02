@@ -11,6 +11,7 @@ import AdminDashboard from './admin/AdminDashboard.jsx';
 import AnalystDashboard from './analyst/analystDashboard.jsx';
 import axios from 'axios';
 import CounsellorDashboard from './counsellor/counsellorDashboard.jsx';
+import TrainerDashboard from './trainer/trainerDashboard.jsx';
 
 // Route guard — checks if user is logged in and has the correct role
 function ProtectedRoute({ children, allowedRole }) {
@@ -74,6 +75,9 @@ function App() {
           } />
           <Route path="/counsellordashboard" element={
             <ProtectedRoute allowedRole="COUNSELOR"><CounsellorDashboard /></ProtectedRoute>
+          } />
+          <Route path="/trainerdashboard" element={
+            <ProtectedRoute allowedRole="TRAINER"><TrainerDashboard /></ProtectedRoute>
           } />
         </Routes>
       </BrowserRouter>

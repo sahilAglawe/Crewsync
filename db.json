@@ -100,6 +100,19 @@
       "role": "ANALYST",
       "tools": "",
       "analysisType": ""
+    },
+    {
+      "id": 1772429172591,
+      "name": "vikrant",
+      "email": "vikrant@gmail.com",
+      "phone": "8357897589",
+      "password": "vikrant123",
+      "status": "Active",
+      "joiningDate": "2026-03-02",
+      "salary": "8837",
+      "role": "TRAINER",
+      "expertise": "java",
+      "batchCapacity": "25"
     }
   ],
   "batches": [
@@ -108,6 +121,7 @@
       "batchName": "BT02",
       "course": "Data science",
       "trainer": "shrikant sir",
+      "trainerId": "1772086123615",
       "startDate": "2026-02-26",
       "endDate": "2026-03-14",
       "maxStudents": "25",
@@ -123,6 +137,7 @@
       "batchName": "BT07",
       "course": "springboot",
       "trainer": "suresh",
+      "trainerId": "1",
       "startDate": "2026-02-27",
       "endDate": "2026-03-14",
       "maxStudents": "25",
@@ -165,5 +180,8 @@
       "enrollmentDate": "2026-02-21",
       "status": "Active"
     }
-  ]
+  ],
+  "tasks": [],
+  "classLogs": [],
+  "reports": []
 }
