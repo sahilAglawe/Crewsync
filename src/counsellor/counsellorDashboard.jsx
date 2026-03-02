@@ -417,10 +417,16 @@ function AssignBatchModal({ show, onClose, students, batches, onAssign }) {
               <select className="form-select" value={selectedStudentId}
                 onChange={e => setSelectedStudentId(e.target.value)}>
                 <option value="">-- Choose a student --</option>
-                {students.map(s => (
+                {students.filter(s => !s.batch || s.batch.trim() === "").map(s => (
                   <option key={s.id} value={s.id}>{s.name} ({s.email})</option>
                 ))}
               </select>
+              {students.filter(s => !s.batch || s.batch.trim() === "").length === 0 && (
+                <small className="text-muted mt-1 d-block">
+                  <i className="bi bi-info-circle me-1"></i>
+                  All students have already been assigned to a batch.
+                </small>
+              )}
             </div>
             <div className="mb-3">
               <label className="form-label fw-semibold">Select Batch <span className="text-danger">*</span></label>

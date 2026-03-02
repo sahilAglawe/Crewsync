@@ -113,7 +113,7 @@
       "maxStudents": "25",
       "mode": "Hybrid",
       "status": "Upcoming",
-      "studentsEnrolled": 1,
+      "studentsEnrolled": 2,
       "createdAt": "2026-02-26T09:30:12.196Z",
       "createdBy": "vijay",
       "createdById": "1772089388234"
@@ -160,8 +160,8 @@
       "name": "sandeep",
       "email": "sandeep@gmail.com",
       "phone": "8847874287",
-      "course": "cloud",
-      "batch": "",
+      "course": "Data science",
+      "batch": "BT02",
       "enrollmentDate": "2026-02-21",
       "status": "Active"
     }
