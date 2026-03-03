@@ -6,126 +6,139 @@ import axios from "axios";
 
 const API_URL = "http://localhost:5000";
 
-// ─── Toast Components ──────────────────────────────────────────────────
+// ─── Toast ─────────────────────────────────────────────────────────────────
 function ToastContainer({ toasts, removeToast }) {
     return (
         <div style={{ position: "fixed", top: 20, right: 20, zIndex: 9999, display: "flex", flexDirection: "column", gap: "10px" }}>
-            {toasts.map(toast => (
-                <Toast key={toast.id} toast={toast} onClose={() => removeToast(toast.id)} />
-            ))}
+            {toasts.map(t => <Toast key={t.id} toast={t} onClose={() => removeToast(t.id)} />)}
         </div>
     );
 }
-
 function Toast({ toast, onClose }) {
     const [exiting, setExiting] = useState(false);
     useEffect(() => {
-        const timer = setTimeout(() => { setExiting(true); setTimeout(onClose, 300); }, 3000);
+        const timer = setTimeout(() => { setExiting(true); setTimeout(onClose, 300); }, 3500);
         return () => clearTimeout(timer);
     }, [onClose]);
-
     const colors = { success: { bg: '#d1e7dd', border: '#28a745', text: '#0f5132', icon: '#28a745' }, error: { bg: '#f8d7da', border: '#dc3545', text: '#842029', icon: '#dc3545' }, warning: { bg: '#fff3cd', border: '#ffc107', text: '#664d03', icon: '#ffc107' }, info: { bg: '#cff4fc', border: '#0dcaf0', text: '#055160', icon: '#0dcaf0' } };
     const icons = { success: 'bi-check-circle-fill', error: 'bi-x-circle-fill', warning: 'bi-exclamation-triangle-fill', info: 'bi-info-circle-fill' };
     const c = colors[toast.type] || colors.info;
-
     return (
-        <div style={{ background: c.bg, borderLeft: `4px solid ${c.border}`, borderRadius: '10px', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 6px 20px rgba(0,0,0,0.15)', color: c.text, animation: exiting ? 'toastSlideOut 0.3s ease forwards' : 'toastSlideIn 0.35s ease', minWidth: '300px' }}>
+        <div style={{ background: c.bg, borderLeft: `4px solid ${c.border}`, borderRadius: '10px', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 6px 20px rgba(0,0,0,0.15)', color: c.text, animation: exiting ? 'toastOut 0.3s ease forwards' : 'toastIn 0.35s ease', minWidth: '300px' }}>
             <i className={`bi ${icons[toast.type]}`} style={{ fontSize: '1.3rem', color: c.icon }}></i>
             <span style={{ flex: 1, fontWeight: 500, fontSize: '0.92rem' }}>{toast.message}</span>
-            <button onClick={() => { setExiting(true); setTimeout(onClose, 300); }} style={{ background: 'none', border: 'none', color: c.text, cursor: 'pointer', fontSize: '1.1rem', padding: 0, opacity: 0.6 }}>
-                <i className="bi bi-x-lg"></i>
-            </button>
-            <style>{`
-        @keyframes toastSlideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @keyframes toastSlideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(120%); opacity: 0; } }
-      `}</style>
+            <button onClick={() => { setExiting(true); setTimeout(onClose, 300); }} style={{ background: 'none', border: 'none', color: c.text, cursor: 'pointer', fontSize: '1.1rem', padding: 0, opacity: 0.6 }}><i className="bi bi-x-lg"></i></button>
+            <style>{`@keyframes toastIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}} @keyframes toastOut{from{transform:translateX(0);opacity:1}to{transform:translateX(120%);opacity:0}}`}</style>
         </div>
     );
 }
 
-// ─── Add Task Modal ──────────────────────────────────────────────────
-function AddTaskModal({ show, onClose, students, onAddTask, editingTask }) {
-    const [taskData, setTaskData] = useState({ studentId: "", title: "", description: "", dueDate: "", priority: "Medium", status: "Pending" });
+// ─── Logout Modal ─────────────────────────────────────────────────────────
+function LogoutModal({ show, onClose, onConfirm }) {
+    if (!show) return null;
+    return (
+        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
+            <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
+                <div className="modal-content border-0" style={{ borderRadius: '15px' }}>
+                    <div className="modal-body text-center p-4">
+                        <div className="rounded-circle d-inline-flex p-3 mb-3" style={{ background: '#fff3cd' }}>
+                            <i className="bi bi-box-arrow-right" style={{ fontSize: '2.5rem', color: '#ffc107' }}></i>
+                        </div>
+                        <h5 className="fw-bold mb-2">Confirm Logout</h5>
+                        <p className="text-muted mb-4">Are you sure you want to logout from your account?</p>
+                        <div className="d-flex gap-2">
+                            <button className="btn btn-light flex-grow-1 py-2" onClick={onClose}>Cancel</button>
+                            <button className="btn btn-warning flex-grow-1 py-2 text-white" onClick={onConfirm}>Yes, Logout</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Batch Progress Modal (Add / Edit) ───────────────────────────────────
+function BatchProgressModal({ show, onClose, onSave, editing, myBatches }) {
+    const [form, setForm] = useState({ batchId: '', title: '', description: '', documentName: '', documentData: '' });
+    const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
-        if (editingTask) {
-            setTaskData({ studentId: editingTask.studentId, title: editingTask.title, description: editingTask.description || "", dueDate: editingTask.dueDate || "", priority: editingTask.priority || "Medium", status: editingTask.status || "Pending" });
+        if (editing) {
+            setForm({ batchId: editing.batchId || '', title: editing.title || '', description: editing.description || '', documentName: editing.documentName || '', documentData: editing.documentData || '' });
         } else {
-            setTaskData({ studentId: "", title: "", description: "", dueDate: "", priority: "Medium", status: "Pending" });
+            setForm({ batchId: '', title: '', description: '', documentName: '', documentData: '' });
         }
-    }, [editingTask, show]);
+    }, [editing, show]);
 
     if (!show) return null;
 
+    const handleFile = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) { alert('File size must be under 5MB'); e.target.value = ''; return; }
+        setUploading(true);
+        const reader = new FileReader();
+        reader.onload = (ev) => { setForm(f => ({ ...f, documentName: file.name, documentData: ev.target.result })); setUploading(false); };
+        reader.readAsDataURL(file);
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!taskData.studentId || !taskData.title) return;
-        onAddTask(taskData);
-        setTaskData({ studentId: "", title: "", description: "", dueDate: "", priority: "Medium", status: "Pending" });
+        if (!form.batchId || !form.title.trim()) return;
+        onSave(form);
     };
 
     return (
-        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
+        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.55)' }} onClick={onClose}>
             <div className="modal-dialog modal-dialog-centered modal-lg" onClick={e => e.stopPropagation()}>
-                <div className="modal-content border-0" style={{ borderRadius: '15px' }}>
-                    <div className="modal-header border-0 pb-0" style={{ background: '#1a1e2b', borderRadius: '15px 15px 0 0' }}>
+                <div className="modal-content border-0" style={{ borderRadius: '16px', overflow: 'hidden' }}>
+                    <div className="modal-header border-0 pb-0" style={{ background: 'linear-gradient(135deg,#1a1e2b,#2a2f3c)', borderRadius: '16px 16px 0 0' }}>
                         <h5 className="modal-title text-white fw-bold">
-                            <i className={`bi ${editingTask ? 'bi-pencil-square' : 'bi-plus-circle'} me-2`} style={{ color: '#4a9eff' }}></i>
-                            {editingTask ? 'Edit Task' : 'Add New Task'}
+                            <i className={`bi ${editing ? 'bi-pencil-square' : 'bi-plus-circle'} me-2`} style={{ color: '#4a9eff' }}></i>
+                            {editing ? 'Edit Batch Progress' : 'Add Batch Progress'}
                         </h5>
-                        <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
+                        <button className="btn-close btn-close-white" onClick={onClose}></button>
                     </div>
                     <form onSubmit={handleSubmit}>
                         <div className="modal-body p-4">
                             <div className="row g-3">
-                                <div className="col-md-6">
-                                    <label className="form-label fw-semibold">Select Student <span className="text-danger">*</span></label>
-                                    <div className="input-group">
-                                        <span className="input-group-text bg-light"><i className="bi bi-person"></i></span>
-                                        <select className="form-select" value={taskData.studentId} onChange={e => setTaskData({ ...taskData, studentId: e.target.value })} required>
-                                            <option value="">-- Choose a student --</option>
-                                            {students.map(s => (<option key={s.id} value={s.id}>{s.name} ({s.email})</option>))}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className="col-md-6">
-                                    <label className="form-label fw-semibold">Task Title <span className="text-danger">*</span></label>
-                                    <div className="input-group">
-                                        <span className="input-group-text bg-light"><i className="bi bi-card-heading"></i></span>
-                                        <input type="text" className="form-control" placeholder="Enter task title" value={taskData.title} onChange={e => setTaskData({ ...taskData, title: e.target.value })} required />
-                                    </div>
+                                <div className="col-12">
+                                    <label className="form-label fw-semibold small">Select Batch <span className="text-danger">*</span></label>
+                                    <select className="form-select" value={form.batchId} onChange={e => setForm(f => ({ ...f, batchId: e.target.value }))} required disabled={!!editing}>
+                                        <option value="">-- Choose your batch --</option>
+                                        {myBatches.map(b => <option key={b.id} value={b.id}>{b.batchName} — {b.course}</option>)}
+                                    </select>
+                                    {myBatches.length === 0 && <small className="text-danger mt-1 d-block"><i className="bi bi-exclamation-triangle me-1"></i>You are not assigned to any batch. Please contact admin.</small>}
                                 </div>
                                 <div className="col-12">
-                                    <label className="form-label fw-semibold">Description</label>
-                                    <textarea className="form-control" rows="3" placeholder="Describe the task..." value={taskData.description} onChange={e => setTaskData({ ...taskData, description: e.target.value })} />
+                                    <label className="form-label fw-semibold small">Title <span className="text-danger">*</span></label>
+                                    <input type="text" className="form-control" placeholder="e.g. Week 3 Progress Update" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required />
                                 </div>
-                                <div className="col-md-4">
-                                    <label className="form-label fw-semibold">Due Date</label>
-                                    <input type="date" className="form-control" value={taskData.dueDate} onChange={e => setTaskData({ ...taskData, dueDate: e.target.value })} />
+                                <div className="col-12">
+                                    <label className="form-label fw-semibold small">Description</label>
+                                    <textarea className="form-control" rows="4" placeholder="Describe the progress, topics covered, student performance..." value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
                                 </div>
-                                <div className="col-md-4">
-                                    <label className="form-label fw-semibold">Priority</label>
-                                    <select className="form-select" value={taskData.priority} onChange={e => setTaskData({ ...taskData, priority: e.target.value })}>
-                                        <option value="Low">Low</option>
-                                        <option value="Medium">Medium</option>
-                                        <option value="High">High</option>
-                                    </select>
-                                </div>
-                                <div className="col-md-4">
-                                    <label className="form-label fw-semibold">Status</label>
-                                    <select className="form-select" value={taskData.status} onChange={e => setTaskData({ ...taskData, status: e.target.value })}>
-                                        <option value="Pending">Pending</option>
-                                        <option value="In Progress">In Progress</option>
-                                        <option value="Completed">Completed</option>
-                                    </select>
+                                <div className="col-12">
+                                    <label className="form-label fw-semibold small">Upload Document <span className="text-muted">(PDF, DOC, DOCX, images — max 5MB)</span></label>
+                                    <div className="border rounded p-3" style={{ background: '#f8f9fa', borderStyle: 'dashed !important', borderColor: '#dee2e6' }}>
+                                        <input type="file" className="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif" onChange={handleFile} />
+                                        {uploading && <div className="mt-2 text-info small"><i className="bi bi-arrow-repeat me-1"></i>Loading file...</div>}
+                                        {form.documentName && !uploading && (
+                                            <div className="mt-2 d-flex align-items-center gap-2 p-2 rounded" style={{ background: '#e6f0ff' }}>
+                                                <i className="bi bi-file-earmark-check text-primary"></i>
+                                                <span className="small fw-semibold text-primary">{form.documentName}</span>
+                                                <button type="button" className="btn btn-sm ms-auto" style={{ color: '#dc3545', padding: '0 4px' }} onClick={() => setForm(f => ({ ...f, documentName: '', documentData: '' }))}><i className="bi bi-x-circle"></i></button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                         <div className="modal-footer border-0 pt-0">
                             <button type="button" className="btn btn-light px-4 py-2" onClick={onClose}>Cancel</button>
-                            <button type="submit" className="btn text-white px-4 py-2" style={{ background: '#4a9eff', border: 'none' }}>
-                                <i className={`bi ${editingTask ? 'bi-check-lg' : 'bi-plus-lg'} me-2`}></i>
-                                {editingTask ? 'Update Task' : 'Add Task'}
+                            <button type="submit" className="btn text-white px-4 py-2" style={{ background: '#4a9eff', border: 'none', borderRadius: '8px' }} disabled={uploading}>
+                                <i className={`bi ${editing ? 'bi-check-lg' : 'bi-plus-lg'} me-2`}></i>
+                                {editing ? 'Update Progress' : 'Save Progress'}
                             </button>
                         </div>
                     </form>
@@ -135,50 +148,45 @@ function AddTaskModal({ show, onClose, students, onAddTask, editingTask }) {
     );
 }
 
-// ─── View Task Modal ─────────────────────────────────────────────────
-function ViewTaskModal({ show, onClose, task, studentName }) {
-    if (!show || !task) return null;
-    const priorityColors = { High: '#dc3545', Medium: '#fd7e14', Low: '#28a745' };
-    const statusColors = { Pending: '#6c757d', 'In Progress': '#4a9eff', Completed: '#28a745' };
-
+// ─── View Progress Modal ──────────────────────────────────────────────────
+function ViewProgressModal({ show, onClose, progress, batchName }) {
+    if (!show || !progress) return null;
     return (
-        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
-            <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
-                <div className="modal-content border-0" style={{ borderRadius: '15px' }}>
-                    <div className="modal-header border-0" style={{ background: '#1a1e2b', borderRadius: '15px 15px 0 0' }}>
-                        <h5 className="modal-title text-white fw-bold">
-                            <i className="bi bi-clipboard-data me-2" style={{ color: '#4a9eff' }}></i>Task Details
-                        </h5>
-                        <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
+        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.55)' }} onClick={onClose}>
+            <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '560px' }} onClick={e => e.stopPropagation()}>
+                <div className="modal-content border-0" style={{ borderRadius: '16px' }}>
+                    <div className="modal-header border-0" style={{ background: 'linear-gradient(135deg,#1a1e2b,#2a2f3c)', borderRadius: '16px 16px 0 0' }}>
+                        <h5 className="modal-title text-white fw-bold"><i className="bi bi-bar-chart-line me-2" style={{ color: '#4a9eff' }}></i>Progress Details</h5>
+                        <button className="btn-close btn-close-white" onClick={onClose}></button>
                     </div>
                     <div className="modal-body p-4">
                         <div className="text-center mb-4">
                             <div className="rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{ width: '70px', height: '70px', background: '#e6f0ff' }}>
-                                <i className="bi bi-clipboard-check" style={{ fontSize: '2rem', color: '#4a9eff' }}></i>
+                                <i className="bi bi-bar-chart-line-fill" style={{ fontSize: '2rem', color: '#4a9eff' }}></i>
                             </div>
-                            <h5 className="fw-bold mb-2">{task.title}</h5>
-                            <div className="d-flex gap-2 justify-content-center">
-                                <span className="badge px-3 py-2" style={{ background: priorityColors[task.priority] || '#6c757d' }}>{task.priority}</span>
-                                <span className="badge px-3 py-2" style={{ background: statusColors[task.status] || '#6c757d' }}>{task.status}</span>
-                            </div>
+                            <h5 className="fw-bold mb-1">{progress.title}</h5>
+                            <span className="badge px-3 py-2" style={{ background: '#4a9eff' }}>{batchName}</span>
                         </div>
                         <div className="list-group list-group-flush">
                             <div className="list-group-item d-flex justify-content-between px-0 border-0 py-2">
-                                <span className="text-muted"><i className="bi bi-person me-2"></i>Student</span>
-                                <span className="fw-semibold">{studentName || 'N/A'}</span>
+                                <span className="text-muted"><i className="bi bi-calendar3 me-2"></i>Date Added</span>
+                                <span className="fw-semibold">{progress.createdAt ? new Date(progress.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}</span>
                             </div>
-                            <div className="list-group-item d-flex justify-content-between px-0 border-0 py-2">
-                                <span className="text-muted"><i className="bi bi-calendar me-2"></i>Due Date</span>
-                                <span className="fw-semibold">{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No deadline'}</span>
-                            </div>
-                            <div className="list-group-item d-flex justify-content-between px-0 border-0 py-2">
-                                <span className="text-muted"><i className="bi bi-calendar-check me-2"></i>Created</span>
-                                <span className="fw-semibold">{task.createdAt ? new Date(task.createdAt).toLocaleDateString() : 'N/A'}</span>
-                            </div>
-                            {task.description && (
+                            {progress.description && (
                                 <div className="list-group-item px-0 border-0 py-2">
-                                    <span className="text-muted d-block mb-1"><i className="bi bi-text-paragraph me-2"></i>Description</span>
-                                    <p className="mb-0 bg-light rounded p-3" style={{ fontSize: '0.9rem' }}>{task.description}</p>
+                                    <span className="text-muted d-block mb-2"><i className="bi bi-text-paragraph me-2"></i>Description</span>
+                                    <p className="mb-0 p-3 rounded" style={{ background: '#f8f9fa', fontSize: '0.9rem', lineHeight: 1.6 }}>{progress.description}</p>
+                                </div>
+                            )}
+                            {progress.documentName && (
+                                <div className="list-group-item px-0 border-0 py-2">
+                                    <span className="text-muted d-block mb-2"><i className="bi bi-paperclip me-2"></i>Attached Document</span>
+                                    <a href={progress.documentData} download={progress.documentName}
+                                        className="d-flex align-items-center gap-2 p-3 rounded text-decoration-none" style={{ background: '#e6f0ff', color: '#1a6fc4' }}>
+                                        <i className="bi bi-file-earmark-arrow-down fs-5"></i>
+                                        <span className="fw-semibold small">{progress.documentName}</span>
+                                        <span className="ms-auto badge" style={{ background: '#4a9eff' }}>Download</span>
+                                    </a>
                                 </div>
                             )}
                         </div>
@@ -192,21 +200,19 @@ function ViewTaskModal({ show, onClose, task, studentName }) {
     );
 }
 
-// ─── Delete Confirmation Modal ───────────────────────────────────────
-function DeleteConfirmationModal({ show, onClose, onConfirm, taskTitle }) {
+// ─── Delete Modal ─────────────────────────────────────────────────────────
+function DeleteModal({ show, onClose, onConfirm, title }) {
     if (!show) return null;
     return (
         <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
             <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
                 <div className="modal-content border-0" style={{ borderRadius: '15px' }}>
                     <div className="modal-body text-center p-4">
-                        <div className="mb-4">
-                            <div className="rounded-circle d-inline-flex p-3 mb-3" style={{ background: '#ffe6e6' }}>
-                                <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: '2.5rem', color: '#dc3545' }}></i>
-                            </div>
-                            <h5 className="fw-bold mb-2">Delete Task</h5>
-                            <p className="text-muted mb-0">Are you sure you want to delete &quot;{taskTitle}&quot;? This cannot be undone.</p>
+                        <div className="rounded-circle d-inline-flex p-3 mb-3" style={{ background: '#ffe6e6' }}>
+                            <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: '2.5rem', color: '#dc3545' }}></i>
                         </div>
+                        <h5 className="fw-bold mb-2">Delete Progress</h5>
+                        <p className="text-muted mb-4">Are you sure you want to delete <strong>"{title}"</strong>? This cannot be undone.</p>
                         <div className="d-flex gap-2">
                             <button className="btn btn-light flex-grow-1 py-2" onClick={onClose}>Cancel</button>
                             <button className="btn btn-danger flex-grow-1 py-2" onClick={onConfirm}>Delete</button>
@@ -218,573 +224,542 @@ function DeleteConfirmationModal({ show, onClose, onConfirm, taskTitle }) {
     );
 }
 
-// ─── Logout Confirmation Modal ───────────────────────────────────────
-function LogoutConfirmationModal({ show, onClose, onConfirm }) {
-    if (!show) return null;
-    return (
-        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
-            <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
-                <div className="modal-content border-0" style={{ borderRadius: '15px' }}>
-                    <div className="modal-body text-center p-4">
-                        <div className="mb-4">
-                            <div className="rounded-circle d-inline-flex p-3 mb-3" style={{ background: '#fff3cd' }}>
-                                <i className="bi bi-box-arrow-right" style={{ fontSize: '2.5rem', color: '#ffc107' }}></i>
-                            </div>
-                            <h5 className="fw-bold mb-2">Confirm Logout</h5>
-                            <p className="text-muted mb-0">Are you sure you want to logout from your account?</p>
-                        </div>
-                        <div className="d-flex gap-2">
-                            <button className="btn btn-light flex-grow-1 py-2" onClick={onClose}>Cancel</button>
-                            <button className="btn btn-warning flex-grow-1 py-2 text-white" onClick={onConfirm}>Yes, Logout</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// ═════════════════════════════════════════════════════════════════════
-// ─── Main TrainerDashboard Component ────────────────────────────────
-// ═════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── Main TrainerDashboard ─────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
 const TrainerDashboard = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState("dashboard");
-    const [students, setStudents] = useState([]);
-    const [tasks, setTasks] = useState([]);
     const [batches, setBatches] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [showLogoutModal, setShowLogoutModal] = useState(false);
-    const [showAddTaskModal, setShowAddTaskModal] = useState(false);
-    const [showViewTaskModal, setShowViewTaskModal] = useState(false);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [selectedTask, setSelectedTask] = useState(null);
-    const [taskToDelete, setTaskToDelete] = useState(null);
-    const [editingTask, setEditingTask] = useState(null);
-    const [hoveredTab, setHoveredTab] = useState(null);
-    const [searchTerm, setSearchTerm] = useState("");
+    const [students, setStudents] = useState([]);
+    const [batchProgress, setBatchProgress] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [toasts, setToasts] = useState([]);
     const [sidebarOpen, setSidebarOpen] = useState(true);
-    const [taskFilter, setTaskFilter] = useState("All");
+    const [hoveredTab, setHoveredTab] = useState(null);
+
+    // modals
+    const [showLogout, setShowLogout] = useState(false);
+    const [showProgressModal, setShowProgressModal] = useState(false);
+    const [showViewModal, setShowViewModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [editingProgress, setEditingProgress] = useState(null);
+    const [viewingProgress, setViewingProgress] = useState(null);
+    const [deletingProgress, setDeletingProgress] = useState(null);
+    const [progressFilter, setProgressFilter] = useState('all');
 
     const currentUser = {
         id: localStorage.getItem("userId"),
         name: localStorage.getItem("userName") || "Trainer",
         email: localStorage.getItem("userEmail") || "trainer@example.com",
-        role: localStorage.getItem("role") || "TRAINER"
     };
 
-    // ─── Toast helper ────────────────────────────────────────────────
     const showToast = useCallback((message, type = "success") => {
         const id = Date.now() + Math.random();
         setToasts(prev => [...prev, { id, message, type }]);
     }, []);
-    const removeToast = useCallback((id) => {
-        setToasts(prev => prev.filter(t => t.id !== id));
-    }, []);
+    const removeToast = useCallback((id) => setToasts(prev => prev.filter(t => t.id !== id)), []);
 
-    // ─── Fetch data ──────────────────────────────────────────────────
-    const fetchStudents = async () => {
-        try {
-            const res = await axios.get(`${API_URL}/students`);
-            setStudents(res.data);
-        } catch (err) { console.error("Error fetching students:", err); }
-    };
-
-    const fetchTasks = async () => {
+    const fetchAll = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`${API_URL}/tasks`);
-            // Filter tasks by trainer
-            const myTasks = res.data.filter(t => t.trainerId === currentUser.id);
-            setTasks(myTasks);
-        } catch (err) { console.error("Error fetching tasks:", err); setTasks([]); }
-        finally { setLoading(false); }
+            const [bRes, sRes, pRes] = await Promise.all([
+                axios.get(`${API_URL}/batches`),
+                axios.get(`${API_URL}/students`),
+                axios.get(`${API_URL}/batchProgress`)
+            ]);
+            const myBatches = bRes.data.filter(b => b.trainerId === currentUser.id);
+            setBatches(myBatches);
+            setStudents(sRes.data);
+            const myProgress = pRes.data.filter(p => p.trainerId === currentUser.id);
+            setBatchProgress(myProgress);
+        } catch (err) {
+            console.error("Fetch error:", err);
+            showToast("Failed to load data. Ensure json-server is running.", "error");
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const fetchBatches = async () => {
-        try {
-            const res = await axios.get(`${API_URL}/batches`);
-            setBatches(res.data);
-        } catch (err) { console.error("Error fetching batches:", err); }
+    useEffect(() => { fetchAll(); }, []);
+
+    // ─── helpers ────────────────────────────────────────────────────────
+    const getBatchName = (batchId) => {
+        const b = batches.find(b => b.id === batchId);
+        return b ? `${b.batchName} — ${b.course}` : 'Unknown Batch';
     };
+    const getBatchStudentCount = (batchId) => students.filter(s => s.batchId === batchId || s.batch === batches.find(b => b.id === batchId)?.batchName).length;
 
-    useEffect(() => {
-        fetchStudents();
-        fetchTasks();
-        fetchBatches();
-    }, []);
-
-    // ─── Stats ───────────────────────────────────────────────────────
+    // ─── stats ────────────────────────────────────────────────────────
     const stats = {
-        totalTasks: tasks.length,
-        pendingTasks: tasks.filter(t => t.status === "Pending").length,
-        inProgressTasks: tasks.filter(t => t.status === "In Progress").length,
-        completedTasks: tasks.filter(t => t.status === "Completed").length,
-        totalStudents: students.length,
-        highPriority: tasks.filter(t => t.priority === "High").length
+        myBatches: batches.length,
+        totalProgress: batchProgress.length,
+        thisMonth: batchProgress.filter(p => { const d = new Date(p.createdAt); const n = new Date(); return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear(); }).length,
+        withDocs: batchProgress.filter(p => p.documentName).length,
     };
 
-    // ─── Get student name helper ─────────────────────────────────────
-    const getStudentName = (studentId) => {
-        const s = students.find(st => st.id === studentId);
-        return s ? s.name : "Unknown";
-    };
-
-    // ─── Filter tasks ────────────────────────────────────────────────
-    const filteredTasks = tasks.filter(task => {
-        const matchesSearch = task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            getStudentName(task.studentId)?.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesFilter = taskFilter === "All" || task.status === taskFilter;
-        return matchesSearch && matchesFilter;
-    });
-
-    // ─── Add Task ────────────────────────────────────────────────────
-    const handleAddTask = async (taskData) => {
-        const student = students.find(s => s.id === taskData.studentId);
-        const newTask = {
-            ...taskData,
-            id: Date.now().toString(),
-            trainerId: currentUser.id,
-            trainerName: currentUser.name,
-            studentName: student?.name || "",
-            createdAt: new Date().toISOString()
-        };
+    // ─── Save Progress ───────────────────────────────────────────────
+    const handleSaveProgress = async (form) => {
         try {
-            const res = await axios.post(`${API_URL}/tasks`, newTask);
-            setTasks(prev => [...prev, res.data]);
-            setShowAddTaskModal(false);
-            showToast(`Task "${taskData.title}" assigned to ${student?.name} successfully!`, "success");
+            if (editingProgress) {
+                const updated = { ...editingProgress, ...form, updatedAt: new Date().toISOString() };
+                await axios.put(`${API_URL}/batchProgress/${editingProgress.id}`, updated);
+                setBatchProgress(prev => prev.map(p => p.id === editingProgress.id ? updated : p));
+                showToast("Batch progress updated successfully!", "success");
+            } else {
+                const newp = { ...form, id: Date.now().toString(), trainerId: currentUser.id, trainerName: currentUser.name, createdAt: new Date().toISOString() };
+                const res = await axios.post(`${API_URL}/batchProgress`, newp);
+                setBatchProgress(prev => [...prev, res.data]);
+                showToast("Batch progress added successfully!", "success");
+            }
+            setShowProgressModal(false);
+            setEditingProgress(null);
         } catch (err) {
-            console.error("Error adding task:", err);
-            showToast("Failed to add task. Please check if the server is running.", "error");
+            console.error("Save error:", err);
+            showToast("Failed to save. Please try again.", "error");
         }
     };
 
-    // ─── Edit Task ───────────────────────────────────────────────────
-    const handleEditClick = (task) => {
-        setEditingTask(task);
-        setShowAddTaskModal(true);
-    };
-
-    const handleUpdateTask = async (taskData) => {
-        const student = students.find(s => s.id === taskData.studentId);
-        const updated = { ...editingTask, ...taskData, studentName: student?.name || "" };
-        try {
-            const res = await axios.put(`${API_URL}/tasks/${editingTask.id}`, updated);
-            setTasks(prev => prev.map(t => t.id === editingTask.id ? res.data : t));
-            setEditingTask(null);
-            setShowAddTaskModal(false);
-            showToast("Task updated successfully!", "success");
-        } catch (err) {
-            console.error("Error updating task:", err);
-            showToast("Failed to update task.", "error");
-        }
-    };
-
-    // ─── Delete Task ─────────────────────────────────────────────────
-    const handleDeleteClick = (task) => { setTaskToDelete(task); setShowDeleteModal(true); };
-
+    // ─── Delete Progress ─────────────────────────────────────────────
     const confirmDelete = async () => {
         try {
-            await axios.delete(`${API_URL}/tasks/${taskToDelete.id}`);
-            setTasks(prev => prev.filter(t => t.id !== taskToDelete.id));
+            await axios.delete(`${API_URL}/batchProgress/${deletingProgress.id}`);
+            setBatchProgress(prev => prev.filter(p => p.id !== deletingProgress.id));
             setShowDeleteModal(false);
-            setTaskToDelete(null);
-            showToast("Task deleted successfully!", "success");
+            setDeletingProgress(null);
+            showToast("Progress deleted.", "success");
         } catch (err) {
-            console.error("Error deleting task:", err);
-            showToast("Failed to delete task.", "error");
+            showToast("Failed to delete.", "error");
         }
     };
 
-    // ─── View Task ───────────────────────────────────────────────────
-    const handleViewClick = (task) => { setSelectedTask(task); setShowViewTaskModal(true); };
+    const confirmLogout = () => { localStorage.clear(); navigate("/login"); };
 
-    // ─── Logout ──────────────────────────────────────────────────────
-    const handleLogoutClick = () => setShowLogoutModal(true);
-    const confirmLogout = () => { setShowLogoutModal(false); localStorage.clear(); navigate("/login"); };
+    // Filtered progress
+    const filteredProgress = progressFilter === 'all' ? batchProgress : batchProgress.filter(p => p.batchId === progressFilter);
 
-    // ─── Sidebar config ──────────────────────────────────────────────
+    // ─── Sidebar ─────────────────────────────────────────────────────
+    const sidebarTabs = [
+        { key: "dashboard", label: "Dashboard", icon: "bi-speedometer2", color: "#4a9eff" },
+        { key: "batchProgress", label: "Batch Progress", icon: "bi-bar-chart-line", badge: batchProgress.length, color: "#28a745" },
+        { key: "myBatches", label: "My Batches", icon: "bi-grid", badge: batches.length, color: "#fd7e14" },
+    ];
     const sidebarStyles = {
-        navItem: { transition: "all 0.3s ease-in-out", cursor: "pointer", position: "relative", overflow: "hidden" },
-        navItemHover: { transform: "translateX(5px)", backgroundColor: "rgba(74,158,255,0.15)", boxShadow: "0 4px 15px rgba(0,0,0,0.2)", borderLeft: "4px solid #4a9eff" },
-        navItemActive: { background: "linear-gradient(90deg, rgba(74,158,255,0.25) 0%, rgba(74,158,255,0.08) 100%)", borderLeft: "4px solid #4a9eff", boxShadow: "0 4px 15px rgba(74,158,255,0.15)", color: "#4a9eff" },
-        logoutHover: { background: "linear-gradient(90deg, rgba(255,107,107,0.18) 0%, rgba(255,107,107,0.05) 100%)", color: "#ff6b6b", transform: "translateX(5px)", borderLeft: "4px solid #ff6b6b" }
+        navItem: { transition: "all 0.3s ease-in-out", cursor: "pointer" },
+        active: { background: "linear-gradient(90deg,rgba(74,158,255,0.25),rgba(74,158,255,0.08))", borderLeft: "4px solid #4a9eff", color: "#4a9eff" },
+        logoutHover: { background: "rgba(255,107,107,0.1)", color: "#ff6b6b", transform: "translateX(5px)", borderLeft: "4px solid #ff6b6b" },
     };
 
-    const sidebarTabs = [
-        { key: "dashboard", label: "Dashboard", icon: "bi-speedometer2", badge: null, color: "#4a9eff" },
-        { key: "tasks", label: "View Tasks", icon: "bi-clipboard-data", badge: tasks.length, color: "#28a745" },
-        { key: "students", label: "My Students", icon: "bi-people", badge: students.length, color: "#fd7e14" }
-    ];
-
-    const priorityColors = { High: '#dc3545', Medium: '#fd7e14', Low: '#28a745' };
-    const statusColors = { Pending: '#6c757d', 'In Progress': '#4a9eff', Completed: '#28a745' };
-
-    // ═══════════════════════════════════════════════════════════════════
     // ─── RENDER ───────────────────────────────────────────────────────
-    // ═══════════════════════════════════════════════════════════════════
     return (
-        <div className="d-flex" style={{ minHeight: "100vh", background: "#f5f7fa" }}>
+        <div className="d-flex" style={{ minHeight: "100vh", background: "#f0f2f7" }}>
             <ToastContainer toasts={toasts} removeToast={removeToast} />
-
             <style>{`
-        .sidebar-tab { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; }
-        .sidebar-tab:hover { transform: translateX(4px); }
-      `}</style>
+              .sidebar-tab{transition:all 0.3s ease!important;}
+              .sidebar-tab:hover{transform:translateX(4px);}
+              .progress-card{transition:all 0.25s ease;}
+              .progress-card:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,0.12)!important;}
+              .batch-card{transition:all 0.25s ease;}
+              .batch-card:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,0.12)!important;}
+              .stat-card{transition:all 0.3s ease;}
+              .stat-card:hover{transform:translateY(-4px);box-shadow:0 12px 35px rgba(0,0,0,0.18)!important;}
+            `}</style>
 
-            {/* ─── Sidebar ──────────────────────────────────────────────── */}
-            <div className="text-white shadow-lg"
-                style={{
-                    width: sidebarOpen ? "280px" : "70px",
-                    minHeight: "100vh", position: "fixed",
-                    background: "linear-gradient(180deg, #1a1e2b 0%, #141722 100%)",
-                    borderRight: "1px solid rgba(255,255,255,0.05)",
-                    transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                    zIndex: 1050, overflowX: "hidden", overflowY: "auto"
-                }}>
+            {/* ─── Sidebar ─────────────────────────────────────────────────── */}
+            <div className="text-white shadow-lg" style={{ width: sidebarOpen ? "280px" : "70px", minHeight: "100vh", position: "fixed", background: "linear-gradient(180deg,#1a1e2b 0%,#141722 100%)", borderRight: "1px solid rgba(255,255,255,0.05)", transition: "width 0.3s cubic-bezier(0.4,0,0.2,1)", zIndex: 1050, overflowX: "hidden", overflowY: "auto" }}>
                 <div style={{ padding: sidebarOpen ? "1.5rem" : "1.5rem 0.7rem" }}>
-
                     {/* Header */}
                     <div className="d-flex align-items-center mb-4" style={{ justifyContent: sidebarOpen ? "space-between" : "center" }}>
                         {sidebarOpen && <h4 className="fw-bold mb-0" style={{ color: "#4a9eff", whiteSpace: "nowrap" }}>CrewSync</h4>}
-                        <button onClick={() => setSidebarOpen(!sidebarOpen)} title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-                            style={{ background: "rgba(255,255,255,0.08)", border: "none", color: "#4a9eff", width: "38px", height: "38px", borderRadius: "10px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", transition: "all 0.2s ease", flexShrink: 0 }}
-                            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.15)"; e.currentTarget.style.transform = "scale(1.1)"; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; e.currentTarget.style.transform = "scale(1)"; }}>
+                        <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: "rgba(255,255,255,0.08)", border: "none", color: "#4a9eff", width: "38px", height: "38px", borderRadius: "10px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", flexShrink: 0 }}>
                             <i className={`bi ${sidebarOpen ? "bi-chevron-left" : "bi-list"}`}></i>
                         </button>
                     </div>
 
                     {/* Profile */}
-                    <div className={`${sidebarOpen ? "text-center" : "d-flex justify-content-center"} mb-4 p-2 rounded`}
-                        style={{ transition: "all 0.3s ease", cursor: "default", background: hoveredTab === "profile" ? "rgba(255,255,255,0.05)" : "transparent" }}
-                        onMouseEnter={() => setHoveredTab("profile")} onMouseLeave={() => setHoveredTab(null)}
-                        title={!sidebarOpen ? `${currentUser.name} (Trainer)` : undefined}>
-                        <div className="rounded-circle d-flex align-items-center justify-content-center mx-auto"
-                            style={{ width: sidebarOpen ? "80px" : "40px", height: sidebarOpen ? "80px" : "40px", background: "#2a2f3c", transition: "all 0.3s ease", transform: hoveredTab === "profile" ? "scale(1.05)" : "scale(1)", boxShadow: hoveredTab === "profile" ? "0 0 20px rgba(74,158,255,0.3)" : "none" }}>
-                            <i className="bi bi-person-fill" style={{ fontSize: sidebarOpen ? "2.5rem" : "1.2rem", color: "#4a9eff" }}></i>
+                    <div className={`${sidebarOpen ? "text-center" : "d-flex justify-content-center"} mb-4`}>
+                        <div className="rounded-circle d-flex align-items-center justify-content-center mx-auto" style={{ width: sidebarOpen ? "75px" : "40px", height: sidebarOpen ? "75px" : "40px", background: "linear-gradient(135deg,#4a9eff,#1a6fc4)" }}>
+                            <i className="bi bi-person-fill" style={{ fontSize: sidebarOpen ? "2.2rem" : "1.2rem", color: "white" }}></i>
                         </div>
                         {sidebarOpen && (
                             <>
-                                <h6 className="text-white mb-1 mt-3">{currentUser.name}</h6>
+                                <h6 className="text-white mb-1 mt-3 fw-bold">{currentUser.name}</h6>
                                 <p className="text-white-50 small mb-2">{currentUser.email}</p>
-                                <span className="badge px-3 py-2" style={{ background: '#4a9eff' }}>Trainer</span>
+                                <span className="badge px-3 py-2 rounded-pill" style={{ background: 'linear-gradient(90deg,#4a9eff,#1a6fc4)' }}>Trainer</span>
                             </>
                         )}
                     </div>
 
-                    {sidebarOpen && <p className="text-white-50 small mb-4">Task Management</p>}
+                    {sidebarOpen && <p className="text-white-50 small mb-3 text-uppercase" style={{ letterSpacing: '0.08em', fontSize: '0.72rem' }}>Navigation</p>}
 
                     <nav className="nav flex-column">
                         {sidebarTabs.map(tab => {
                             const isActive = activeTab === tab.key;
-                            const isHovered = hoveredTab === tab.key;
-                            const accentColor = isActive ? "#4a9eff" : (isHovered ? tab.color : "white");
-
+                            const isHov = hoveredTab === tab.key;
                             return (
                                 <button key={tab.key}
                                     className={`nav-link border-0 bg-transparent mb-2 py-2 rounded sidebar-tab ${sidebarOpen ? "text-start w-100 px-3" : "d-flex justify-content-center w-100 px-0"}`}
                                     onClick={() => setActiveTab(tab.key)}
                                     onMouseEnter={() => setHoveredTab(tab.key)} onMouseLeave={() => setHoveredTab(null)}
                                     title={!sidebarOpen ? tab.label : undefined}
-                                    style={{
-                                        ...sidebarStyles.navItem, color: accentColor,
-                                        ...(isActive ? sidebarStyles.navItemActive : {}),
-                                        ...(isHovered && !isActive ? { ...sidebarStyles.navItemHover, borderLeftColor: tab.color, background: `linear-gradient(90deg, ${tab.color}22 0%, transparent 100%)` } : {})
-                                    }}>
-                                    <i className={`bi ${tab.icon} ${sidebarOpen ? "me-2" : ""}`}
-                                        style={{ fontSize: sidebarOpen ? undefined : "1.2rem", transition: "all 0.25s ease", transform: isHovered ? "scale(1.2)" : "scale(1)", color: accentColor, filter: isHovered && !isActive ? `drop-shadow(0 0 4px ${tab.color}88)` : "none" }}></i>
+                                    style={{ ...sidebarStyles.navItem, color: isActive ? "#4a9eff" : isHov ? tab.color : "white", ...(isActive ? sidebarStyles.active : {}), ...(isHov && !isActive ? { background: `linear-gradient(90deg,${tab.color}22,transparent)`, borderLeft: `4px solid ${tab.color}`, transform: "translateX(5px)" } : {}) }}>
+                                    <i className={`bi ${tab.icon} ${sidebarOpen ? "me-2" : ""}`} style={{ fontSize: sidebarOpen ? undefined : "1.2rem", transform: isHov ? "scale(1.2)" : "scale(1)", transition: "transform 0.2s ease" }}></i>
                                     {sidebarOpen && tab.label}
-                                    {sidebarOpen && tab.badge !== null && (
-                                        <span className="badge ms-auto" style={{ background: isActive ? '#4a9eff' : (isHovered ? tab.color : '#4a9eff'), transition: 'background 0.3s ease' }}>{tab.badge}</span>
+                                    {sidebarOpen && tab.badge !== undefined && (
+                                        <span className="badge ms-auto" style={{ background: isActive ? '#4a9eff' : tab.color }}>{tab.badge}</span>
                                     )}
                                 </button>
                             );
                         })}
 
-                        <hr className="my-3" style={{ background: 'rgba(255,255,255,0.1)' }} />
+                        <hr className="my-3" style={{ borderColor: 'rgba(255,255,255,0.1)' }} />
 
-                        {/* Logout */}
                         <button className={`nav-link border-0 bg-transparent py-2 rounded sidebar-tab ${sidebarOpen ? "text-start w-100 px-3" : "d-flex justify-content-center w-100 px-0"}`}
-                            onClick={handleLogoutClick}
+                            onClick={() => setShowLogout(true)}
                             onMouseEnter={() => setHoveredTab("logout")} onMouseLeave={() => setHoveredTab(null)}
                             title={!sidebarOpen ? "Logout" : undefined}
                             style={{ ...sidebarStyles.navItem, color: hoveredTab === "logout" ? "#ff6b6b" : "white", ...(hoveredTab === "logout" ? sidebarStyles.logoutHover : {}) }}>
-                            <i className={`bi bi-box-arrow-right ${sidebarOpen ? "me-2" : ""}`}
-                                style={{ fontSize: sidebarOpen ? undefined : "1.2rem", transition: "all 0.25s ease", transform: hoveredTab === "logout" ? "scale(1.2)" : "scale(1)" }}></i>
+                            <i className={`bi bi-box-arrow-right ${sidebarOpen ? "me-2" : ""}`} style={{ fontSize: sidebarOpen ? undefined : "1.2rem", transition: "transform 0.2s", transform: hoveredTab === "logout" ? "scale(1.2)" : "scale(1)" }}></i>
                             {sidebarOpen && "Logout"}
                         </button>
                     </nav>
                 </div>
             </div>
 
-            {/* ─── Main Content ──────────────────────────────────────────── */}
-            <div className="flex-grow-1 p-4" style={{ marginLeft: sidebarOpen ? "280px" : "70px", transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }}>
+            {/* ─── Main Content ──────────────────────────────────────────────── */}
+            <div className="flex-grow-1" style={{ marginLeft: sidebarOpen ? "280px" : "70px", transition: "margin-left 0.3s cubic-bezier(0.4,0,0.2,1)", padding: "1.5rem 2rem" }}>
 
-                {/* Header */}
+                {/* Top Bar */}
                 <div className="d-flex justify-content-between align-items-center mb-4">
-                    <h4 className="fw-bold" style={{ color: "#1a1e2b" }}>
-                        {activeTab === "dashboard" && <><i className="bi bi-speedometer2 me-2" style={{ color: '#4a9eff' }}></i>Trainer Overview</>}
-                        {activeTab === "tasks" && <><i className="bi bi-clipboard-data me-2" style={{ color: '#4a9eff' }}></i>All Tasks</>}
-                        {activeTab === "students" && <><i className="bi bi-people me-2" style={{ color: '#4a9eff' }}></i>My Students</>}
-                    </h4>
-                    {(activeTab === "dashboard" || activeTab === "tasks") && (
-                        <button className="btn text-white px-4 py-2" style={{ background: '#4a9eff', border: 'none', borderRadius: '10px' }}
-                            onClick={() => { setEditingTask(null); setShowAddTaskModal(true); }}>
-                            <i className="bi bi-plus-lg me-2"></i>Add Task
+                    <div>
+                        <h4 className="fw-bold mb-0" style={{ color: "#1a1e2b" }}>
+                            {activeTab === "dashboard" && <><i className="bi bi-speedometer2 me-2" style={{ color: '#4a9eff' }}></i>Trainer Overview</>}
+                            {activeTab === "batchProgress" && <><i className="bi bi-bar-chart-line me-2" style={{ color: '#28a745' }}></i>Batch Progress</>}
+                            {activeTab === "myBatches" && <><i className="bi bi-grid me-2" style={{ color: '#fd7e14' }}></i>My Batches</>}
+                        </h4>
+                        <p className="text-muted small mb-0 mt-1">Welcome back, <strong>{currentUser.name}</strong> 👋</p>
+                    </div>
+                    {(activeTab === "batchProgress" || activeTab === "dashboard") && (
+                        <button className="btn text-white px-4 py-2 d-flex align-items-center gap-2"
+                            style={{ background: 'linear-gradient(135deg,#4a9eff,#1a6fc4)', border: 'none', borderRadius: '10px', boxShadow: '0 4px 15px rgba(74,158,255,0.3)' }}
+                            onClick={() => { setEditingProgress(null); setShowProgressModal(true); }}
+                            disabled={batches.length === 0}>
+                            <i className="bi bi-plus-lg"></i>Add Batch Progress
                         </button>
                     )}
                 </div>
 
-                {/* ─── Dashboard Tab ──────────────────────────────────────── */}
-                {activeTab === "dashboard" && (
+                {loading ? (
+                    <div className="d-flex align-items-center justify-content-center" style={{ minHeight: '50vh' }}>
+                        <div className="text-center">
+                            <div className="spinner-border mb-3" style={{ color: '#4a9eff', width: '3rem', height: '3rem' }}></div>
+                            <p className="text-muted">Loading your dashboard...</p>
+                        </div>
+                    </div>
+                ) : (
                     <>
-                        {/* Stats Cards */}
-                        <div className="row g-4 mb-4">
-                            {[
-                                { label: "Total Tasks", value: stats.totalTasks, icon: "bi-clipboard-data-fill", bg: "#4a9eff" },
-                                { label: "Pending", value: stats.pendingTasks, icon: "bi-clock-fill", bg: "#6c757d" },
-                                { label: "In Progress", value: stats.inProgressTasks, icon: "bi-arrow-repeat", bg: "#fd7e14" },
-                                { label: "Completed", value: stats.completedTasks, icon: "bi-check-circle-fill", bg: "#28a745" }
-                            ].map((card, i) => (
-                                <div className="col-md-3" key={i}>
-                                    <div className="card p-3 border-0 shadow h-100" style={{ background: card.bg, borderRadius: "12px", color: "white" }}>
-                                        <div className="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <h6 className="text-white-50 mb-2">{card.label}</h6>
-                                                <h3 className="fw-bold mb-0">{card.value}</h3>
+                        {/* ─── Dashboard Tab ─────────────────────────────────────── */}
+                        {activeTab === "dashboard" && (
+                            <>
+                                {/* Stat Cards */}
+                                <div className="row g-4 mb-4">
+                                    {[
+                                        { label: "My Batches", value: stats.myBatches, icon: "bi-grid-fill", gradient: "linear-gradient(135deg,#4a9eff,#1a6fc4)", action: () => setActiveTab("myBatches") },
+                                        { label: "Total Progress Records", value: stats.totalProgress, icon: "bi-bar-chart-fill", gradient: "linear-gradient(135deg,#28a745,#19692c)", action: () => setActiveTab("batchProgress") },
+                                        { label: "This Month", value: stats.thisMonth, icon: "bi-calendar-check-fill", gradient: "linear-gradient(135deg,#fd7e14,#c8590a)", action: null },
+                                        { label: "With Documents", value: stats.withDocs, icon: "bi-file-earmark-check-fill", gradient: "linear-gradient(135deg,#6f42c1,#4a2a8a)", action: null },
+                                    ].map((card, i) => (
+                                        <div className="col-md-3" key={i}>
+                                            <div className="card border-0 shadow stat-card h-100" onClick={card.action || undefined} style={{ borderRadius: "14px", background: card.gradient, color: "white", cursor: card.action ? 'pointer' : 'default' }}>
+                                                <div className="card-body p-4">
+                                                    <div className="d-flex justify-content-between align-items-start">
+                                                        <div>
+                                                            <p className="mb-2" style={{ opacity: 0.8, fontSize: '0.85rem' }}>{card.label}</p>
+                                                            <h2 className="fw-bold mb-0">{card.value}</h2>
+                                                        </div>
+                                                        <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '50px', height: '50px', background: 'rgba(255,255,255,0.2)' }}>
+                                                            <i className={`bi ${card.icon} fs-4`}></i>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <i className={`bi ${card.icon} fs-1 text-white-50`}></i>
                                         </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Row 2 */}
-                        <div className="row g-4 mb-4">
-                            <div className="col-md-6">
-                                <div className="card p-3 border-0 shadow h-100" style={{ background: "#EC4899", borderRadius: "12px", color: "white" }}>
-                                    <div className="d-flex justify-content-between align-items-center">
-                                        <div><h6 className="text-white-50 mb-2">Total Students</h6><h3 className="fw-bold mb-0">{stats.totalStudents}</h3></div>
-                                        <i className="bi bi-people-fill fs-1 text-white-50"></i>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="col-md-6">
-                                <div className="card p-3 border-0 shadow h-100" style={{ background: "#dc3545", borderRadius: "12px", color: "white" }}>
-                                    <div className="d-flex justify-content-between align-items-center">
-                                        <div><h6 className="text-white-50 mb-2">High Priority Tasks</h6><h3 className="fw-bold mb-0">{stats.highPriority}</h3></div>
-                                        <i className="bi bi-exclamation-triangle-fill fs-1 text-white-50"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Quick Actions */}
-                        <div className="row g-4 mb-4">
-                            {[
-                                { label: "Add New Task", icon: "bi-plus-circle-fill", bg: "#4a9eff", action: () => { setEditingTask(null); setShowAddTaskModal(true); } },
-                                { label: "View All Tasks", icon: "bi-clipboard-data-fill", bg: "#28a745", action: () => setActiveTab("tasks") },
-                                { label: "My Students", icon: "bi-people-fill", bg: "#fd7e14", action: () => setActiveTab("students") }
-                            ].map((item, idx) => (
-                                <div className="col-md-4" key={idx}>
-                                    <div className="card border-0 shadow h-100" onClick={item.action}
-                                        style={{ borderRadius: '12px', background: 'white', cursor: 'pointer', transition: 'all 0.25s ease' }}
-                                        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)'; }}
-                                        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = ''; }}>
-                                        <div className="card-body text-center p-4">
-                                            <div className="rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{ width: '50px', height: '50px', background: item.bg }}>
-                                                <i className={`bi ${item.icon} text-white`} style={{ fontSize: '1.3rem' }}></i>
-                                            </div>
-                                            <h6 className="fw-bold mb-0" style={{ fontSize: '0.9rem', color: '#1a1e2b' }}>{item.label}</h6>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Recent Tasks Table */}
-                        <div className="card border-0 shadow" style={{ borderRadius: '12px', overflow: 'hidden' }}>
-                            <div className="card-header bg-white border-0 py-3 px-4">
-                                <h5 className="fw-bold mb-0"><i className="bi bi-clock-history me-2" style={{ color: '#4a9eff' }}></i>Recent Tasks</h5>
-                            </div>
-                            <div className="table-responsive">
-                                <table className="table table-hover mb-0">
-                                    <thead style={{ background: '#f8f9fa' }}>
-                                        <tr>
-                                            <th className="py-3 ps-4 fw-semibold text-muted" style={{ fontSize: '0.85rem' }}>Task</th>
-                                            <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.85rem' }}>Student</th>
-                                            <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.85rem' }}>Priority</th>
-                                            <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.85rem' }}>Status</th>
-                                            <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.85rem' }}>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {tasks.slice(0, 5).map(task => (
-                                            <tr key={task.id} className="align-middle">
-                                                <td className="py-3 ps-4 fw-semibold">{task.title}</td>
-                                                <td className="py-3">{getStudentName(task.studentId)}</td>
-                                                <td className="py-3"><span className="badge" style={{ background: priorityColors[task.priority] }}>{task.priority}</span></td>
-                                                <td className="py-3"><span className="badge" style={{ background: statusColors[task.status] }}>{task.status}</span></td>
-                                                <td className="py-3">
-                                                    <button className="btn btn-sm btn-outline-primary" onClick={() => handleViewClick(task)}><i className="bi bi-eye"></i></button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {tasks.length === 0 && (
-                                            <tr><td colSpan="5" className="text-center py-4 text-muted">No tasks created yet. Click "Add Task" to get started.</td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                {/* ─── Tasks Tab ──────────────────────────────────────────── */}
-                {activeTab === "tasks" && (
-                    <div className="card border-0 shadow" style={{ borderRadius: '12px', overflow: 'hidden' }}>
-                        {/* Search & Filter Bar */}
-                        <div className="card-header bg-white border-0 py-3 px-4">
-                            <div className="row g-2 align-items-center">
-                                <div className="col-md-6">
-                                    <div className="input-group">
-                                        <span className="input-group-text bg-light border-0"><i className="bi bi-search text-muted"></i></span>
-                                        <input type="text" className="form-control border-0 bg-light" placeholder="Search tasks or students..."
-                                            value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-                                    </div>
-                                </div>
-                                <div className="col-md-6 d-flex gap-2 justify-content-end">
-                                    {["All", "Pending", "In Progress", "Completed"].map(f => (
-                                        <button key={f} className={`btn btn-sm px-3 py-1 ${taskFilter === f ? 'text-white' : 'btn-outline-secondary'}`}
-                                            style={taskFilter === f ? { background: '#4a9eff', border: 'none', borderRadius: '20px' } : { borderRadius: '20px' }}
-                                            onClick={() => setTaskFilter(f)}>{f}</button>
                                     ))}
                                 </div>
-                            </div>
-                        </div>
 
-                        {loading ? (
-                            <div className="text-center py-5">
-                                <div className="spinner-border" style={{ color: '#4a9eff' }} role="status"><span className="visually-hidden">Loading...</span></div>
-                            </div>
-                        ) : (
-                            <div className="table-responsive">
-                                <table className="table table-hover mb-0">
-                                    <thead style={{ background: "#1a1e2b", color: "white" }}>
-                                        <tr>
-                                            <th className="py-3 ps-4">#</th>
-                                            <th className="py-3">Task Title</th>
-                                            <th className="py-3">Student</th>
-                                            <th className="py-3">Due Date</th>
-                                            <th className="py-3">Priority</th>
-                                            <th className="py-3">Status</th>
-                                            <th className="py-3">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredTasks.map((task, idx) => (
-                                            <tr key={task.id} className="align-middle">
-                                                <td className="py-3 ps-4 text-muted">{idx + 1}</td>
-                                                <td className="py-3">
-                                                    <div className="d-flex align-items-center">
-                                                        <div className="rounded-circle d-flex align-items-center justify-content-center me-2"
-                                                            style={{ width: '34px', height: '34px', background: '#e6f0ff', flexShrink: 0 }}>
-                                                            <i className="bi bi-clipboard-check" style={{ color: '#4a9eff', fontSize: '0.9rem' }}></i>
-                                                        </div>
-                                                        <span className="fw-semibold">{task.title}</span>
+                                {/* Quick Actions */}
+                                <div className="row g-4 mb-4">
+                                    {[
+                                        { label: "Add Batch Progress", icon: "bi-plus-circle-fill", color: "#28a745", desc: "Record new batch progress", action: () => { setEditingProgress(null); setShowProgressModal(true); } },
+                                        { label: "View Progress Records", icon: "bi-bar-chart-line-fill", color: "#4a9eff", desc: "See all progress entries", action: () => setActiveTab("batchProgress") },
+                                        { label: "My Batches", icon: "bi-grid-fill", color: "#fd7e14", desc: "View assigned batches", action: () => setActiveTab("myBatches") },
+                                    ].map((item, idx) => (
+                                        <div className="col-md-4" key={idx}>
+                                            <div className="card border-0 shadow-sm h-100" onClick={item.action}
+                                                style={{ borderRadius: '14px', background: 'white', cursor: 'pointer', borderTop: `3px solid ${item.color}` }}
+                                                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.12)'; }}
+                                                onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
+                                                <div className="card-body text-center p-4" style={{ transition: 'all 0.25s' }}>
+                                                    <div className="rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{ width: '56px', height: '56px', background: `${item.color}20` }}>
+                                                        <i className={`bi ${item.icon}`} style={{ fontSize: '1.5rem', color: item.color }}></i>
                                                     </div>
-                                                </td>
-                                                <td className="py-3">{getStudentName(task.studentId)}</td>
-                                                <td className="py-3"><small>{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '—'}</small></td>
-                                                <td className="py-3"><span className="badge" style={{ background: priorityColors[task.priority] }}>{task.priority}</span></td>
-                                                <td className="py-3"><span className="badge" style={{ background: statusColors[task.status] }}>{task.status}</span></td>
-                                                <td className="py-3">
-                                                    <button className="btn btn-sm btn-info text-white me-1" style={{ borderRadius: '8px' }} onClick={() => handleViewClick(task)}><i className="bi bi-eye-fill"></i></button>
-                                                    <button className="btn btn-sm btn-warning text-white me-1" style={{ borderRadius: '8px' }} onClick={() => handleEditClick(task)}><i className="bi bi-pencil-fill"></i></button>
-                                                    <button className="btn btn-sm btn-danger text-white" style={{ borderRadius: '8px' }} onClick={() => handleDeleteClick(task)}><i className="bi bi-trash-fill"></i></button>
-                                                </td>
+                                                    <h6 className="fw-bold mb-1" style={{ color: '#1a1e2b' }}>{item.label}</h6>
+                                                    <p className="text-muted small mb-0">{item.desc}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Recent Progress Table */}
+                                <div className="card border-0 shadow" style={{ borderRadius: '14px', overflow: 'hidden' }}>
+                                    <div className="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+                                        <h6 className="fw-bold mb-0"><i className="bi bi-clock-history me-2" style={{ color: '#4a9eff' }}></i>Recent Progress Records</h6>
+                                        <button className="btn btn-sm btn-outline-primary" onClick={() => setActiveTab("batchProgress")}>View All</button>
+                                    </div>
+                                    <div className="table-responsive">
+                                        <table className="table table-hover mb-0">
+                                            <thead style={{ background: '#f8f9fa' }}>
+                                                <tr>
+                                                    <th className="py-3 ps-4 fw-semibold text-muted" style={{ fontSize: '0.82rem' }}>TITLE</th>
+                                                    <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.82rem' }}>BATCH</th>
+                                                    <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.82rem' }}>DATE</th>
+                                                    <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.82rem' }}>DOCUMENT</th>
+                                                    <th className="py-3 fw-semibold text-muted" style={{ fontSize: '0.82rem' }}>ACTION</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {batchProgress.slice(0, 5).map(p => (
+                                                    <tr key={p.id} className="align-middle">
+                                                        <td className="py-3 ps-4 fw-semibold">{p.title}</td>
+                                                        <td className="py-3"><span className="badge" style={{ background: '#e6f0ff', color: '#1a6fc4' }}>{getBatchName(p.batchId)}</span></td>
+                                                        <td className="py-3 text-muted small">{p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
+                                                        <td className="py-3">{p.documentName ? <span className="badge bg-success"><i className="bi bi-paperclip me-1"></i>{p.documentName.length > 18 ? p.documentName.substring(0, 18) + '…' : p.documentName}</span> : <span className="text-muted small">—</span>}</td>
+                                                        <td className="py-3">
+                                                            <button className="btn btn-sm btn-outline-primary" onClick={() => { setViewingProgress(p); setShowViewModal(true); }}><i className="bi bi-eye-fill"></i></button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {batchProgress.length === 0 && <tr><td colSpan="5" className="text-center py-5 text-muted"><i className="bi bi-bar-chart-line fs-1 d-block mb-2"></i>No progress records yet. Click "Add Batch Progress" to get started.</td></tr>}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {/* ─── Batch Progress Tab ─────────────────────────────────── */}
+                        {activeTab === "batchProgress" && (
+                            <>
+                                {/* Filter row */}
+                                <div className="card border-0 shadow-sm mb-4" style={{ borderRadius: '12px' }}>
+                                    <div className="card-body py-3 px-4">
+                                        <div className="d-flex flex-wrap gap-2 align-items-center">
+                                            <span className="text-muted small fw-semibold me-2">Filter by Batch:</span>
+                                            <button className={`btn btn-sm px-3 rounded-pill ${progressFilter === 'all' ? 'text-white' : 'btn-outline-secondary'}`}
+                                                style={progressFilter === 'all' ? { background: '#4a9eff', border: 'none' } : {}}
+                                                onClick={() => setProgressFilter('all')}>All ({batchProgress.length})</button>
+                                            {batches.map(b => (
+                                                <button key={b.id} className={`btn btn-sm px-3 rounded-pill ${progressFilter === b.id ? 'text-white' : 'btn-outline-secondary'}`}
+                                                    style={progressFilter === b.id ? { background: '#28a745', border: 'none' } : {}}
+                                                    onClick={() => setProgressFilter(b.id)}>{b.batchName} ({batchProgress.filter(p => p.batchId === b.id).length})</button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="card border-0 shadow" style={{ borderRadius: '14px', overflow: 'hidden' }}>
+                                    <div className="table-responsive">
+                                        <table className="table table-hover mb-0">
+                                            <thead style={{ background: '#1a1e2b', color: 'white' }}>
+                                                <tr>
+                                                    <th className="py-3 ps-4" style={{ fontWeight: 600, fontSize: '0.83rem', letterSpacing: '0.04em' }}>#</th>
+                                                    <th className="py-3" style={{ fontWeight: 600, fontSize: '0.83rem', letterSpacing: '0.04em' }}>TITLE</th>
+                                                    <th className="py-3" style={{ fontWeight: 600, fontSize: '0.83rem', letterSpacing: '0.04em' }}>BATCH</th>
+                                                    <th className="py-3" style={{ fontWeight: 600, fontSize: '0.83rem', letterSpacing: '0.04em' }}>DESCRIPTION</th>
+                                                    <th className="py-3" style={{ fontWeight: 600, fontSize: '0.83rem', letterSpacing: '0.04em' }}>DOCUMENT</th>
+                                                    <th className="py-3" style={{ fontWeight: 600, fontSize: '0.83rem', letterSpacing: '0.04em' }}>DATE</th>
+                                                    <th className="py-3" style={{ fontWeight: 600, fontSize: '0.83rem', letterSpacing: '0.04em' }}>ACTIONS</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {filteredProgress.map((p, idx) => (
+                                                    <tr key={p.id} className="align-middle">
+                                                        <td className="py-3 ps-4 text-muted fw-semibold">{idx + 1}</td>
+                                                        <td className="py-3">
+                                                            <div className="d-flex align-items-center gap-2">
+                                                                <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '34px', height: '34px', background: '#e6f0ff', flexShrink: 0 }}>
+                                                                    <i className="bi bi-bar-chart-line-fill" style={{ color: '#4a9eff', fontSize: '0.9rem' }}></i>
+                                                                </div>
+                                                                <div>
+                                                                    <span className="fw-semibold d-block" style={{ color: '#1a1e2b' }}>{p.title}</span>
+                                                                    {p.updatedAt && <span className="badge bg-light text-muted" style={{ fontSize: '0.68rem' }}>Edited</span>}
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-3">
+                                                            <span className="badge px-3 py-2" style={{ background: '#e6f0ff', color: '#1a6fc4', fontWeight: 600 }}>{getBatchName(p.batchId)}</span>
+                                                        </td>
+                                                        <td className="py-3" style={{ maxWidth: '220px' }}>
+                                                            <span className="text-muted small" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                                                {p.description || <em>No description</em>}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-3">
+                                                            {p.documentName ? (
+                                                                <a href={p.documentData} download={p.documentName} className="d-flex align-items-center gap-1 text-decoration-none" style={{ color: '#1a6fc4' }} title={p.documentName}>
+                                                                    <i className="bi bi-file-earmark-arrow-down-fill fs-5"></i>
+                                                                    <span className="small fw-semibold" style={{ maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.documentName}</span>
+                                                                </a>
+                                                            ) : <span className="text-muted small">—</span>}
+                                                        </td>
+                                                        <td className="py-3 text-muted small">
+                                                            {p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                                                        </td>
+                                                        <td className="py-3">
+                                                            <div className="d-flex gap-1">
+                                                                <button className="btn btn-sm" style={{ background: '#e6f0ff', color: '#1a6fc4', border: 'none', borderRadius: '8px', padding: '5px 10px' }} title="View" onClick={() => { setViewingProgress(p); setShowViewModal(true); }}>
+                                                                    <i className="bi bi-eye-fill"></i>
+                                                                </button>
+                                                                <button className="btn btn-sm" style={{ background: '#fff3cd', color: '#856404', border: 'none', borderRadius: '8px', padding: '5px 10px' }} title="Edit" onClick={() => { setEditingProgress(p); setShowProgressModal(true); }}>
+                                                                    <i className="bi bi-pencil-fill"></i>
+                                                                </button>
+                                                                <button className="btn btn-sm" style={{ background: '#ffe6e6', color: '#dc3545', border: 'none', borderRadius: '8px', padding: '5px 10px' }} title="Delete" onClick={() => { setDeletingProgress(p); setShowDeleteModal(true); }}>
+                                                                    <i className="bi bi-trash-fill"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {filteredProgress.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan="7" className="text-center py-5">
+                                                            <i className="bi bi-bar-chart-line fs-1 d-block mb-3" style={{ color: '#4a9eff', opacity: 0.5 }}></i>
+                                                            <p className="fw-semibold text-muted mb-2">No Progress Records Yet</p>
+                                                            <p className="text-muted small mb-3">Start documenting your batch progress to keep track of training milestones.</p>
+                                                            {batches.length > 0 ? (
+                                                                <button className="btn text-white px-4 py-2" style={{ background: 'linear-gradient(135deg,#4a9eff,#1a6fc4)', borderRadius: '10px', border: 'none' }}
+                                                                    onClick={() => { setEditingProgress(null); setShowProgressModal(true); }}>
+                                                                    <i className="bi bi-plus-lg me-2"></i>Add First Progress Record
+                                                                </button>
+                                                            ) : (
+                                                                <div className="alert alert-warning d-inline-block"><i className="bi bi-exclamation-triangle me-2"></i>You are not assigned to any batch yet.</div>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {/* ─── My Batches Tab ─────────────────────────────────────── */}
+                        {activeTab === "myBatches" && (
+                            <div className="card border-0 shadow" style={{ borderRadius: '14px', overflow: 'hidden' }}>
+                                <div className="table-responsive">
+                                    <table className="table table-hover mb-0">
+                                        <thead style={{ background: '#1a1e2b', color: 'white' }}>
+                                            <tr>
+                                                <th className="py-3 ps-4" style={{ fontWeight: 600, fontSize: '0.83rem', letterSpacing: '0.04em' }}>#</th>
+                                                <th className="py-3" style={{ fontWeight: 600, fontSize: '0.83rem', letterSpacing: '0.04em' }}>BATCH</th>
+                                                <th className="py-3" style={{ fontWeight: 600, fontSize: '0.83rem', letterSpacing: '0.04em' }}>COURSE</th>
+                                                <th className="py-3" style={{ fontWeight: 600, fontSize: '0.83rem', letterSpacing: '0.04em' }}>MODE</th>
+                                                <th className="py-3" style={{ fontWeight: 600, fontSize: '0.83rem', letterSpacing: '0.04em' }}>START DATE</th>
+                                                <th className="py-3" style={{ fontWeight: 600, fontSize: '0.83rem', letterSpacing: '0.04em' }}>END DATE</th>
+                                                <th className="py-3" style={{ fontWeight: 600, fontSize: '0.83rem', letterSpacing: '0.04em' }}>STUDENTS</th>
+                                                <th className="py-3" style={{ fontWeight: 600, fontSize: '0.83rem', letterSpacing: '0.04em' }}>STATUS</th>
+                                                <th className="py-3" style={{ fontWeight: 600, fontSize: '0.83rem', letterSpacing: '0.04em' }}>PROGRESS</th>
+                                                <th className="py-3" style={{ fontWeight: 600, fontSize: '0.83rem', letterSpacing: '0.04em' }}>ACTION</th>
                                             </tr>
-                                        ))}
-                                        {filteredTasks.length === 0 && (
-                                            <tr><td colSpan="7" className="text-center py-5 text-muted"><i className="bi bi-inbox fs-1 d-block mb-3"></i>No tasks found.</td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            {batches.map((batch, idx) => {
+                                                const batchStudents = students.filter(s => s.batchId === batch.id || s.batch === batch.batchName);
+                                                const progressCount = batchProgress.filter(p => p.batchId === batch.id).length;
+                                                const statusColor = { Ongoing: '#28a745', Upcoming: '#4a9eff', Completed: '#6c757d' }[batch.status] || '#6c757d';
+                                                const modeIcon = { Online: 'bi-camera-video', Offline: 'bi-building', Hybrid: 'bi-diagram-2' }[batch.mode] || 'bi-building';
+                                                return (
+                                                    <tr key={batch.id} className="align-middle">
+                                                        <td className="py-3 ps-4 text-muted fw-semibold">{idx + 1}</td>
+                                                        <td className="py-3">
+                                                            <div className="d-flex align-items-center gap-2">
+                                                                <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '36px', height: '36px', background: '#f0f7ff', flexShrink: 0 }}>
+                                                                    <i className="bi bi-grid-fill" style={{ color: '#fd7e14', fontSize: '0.95rem' }}></i>
+                                                                </div>
+                                                                <span className="fw-bold" style={{ color: '#1a1e2b' }}>{batch.batchName}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-3 fw-semibold">{batch.course || '—'}</td>
+                                                        <td className="py-3">
+                                                            <span className="badge" style={{ background: '#f0f0f0', color: '#555', fontWeight: 600 }}>
+                                                                <i className={`bi ${modeIcon} me-1`}></i>{batch.mode || '—'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-3 small text-muted">{batch.startDate ? new Date(batch.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
+                                                        <td className="py-3 small text-muted">{batch.endDate ? new Date(batch.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
+                                                        <td className="py-3">
+                                                            <span className="badge" style={{ background: '#e6f0ff', color: '#1a6fc4', fontWeight: 600 }}>
+                                                                <i className="bi bi-people-fill me-1"></i>{batchStudents.length}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-3">
+                                                            <span className="badge px-3 py-2" style={{ background: statusColor }}>{batch.status}</span>
+                                                        </td>
+                                                        <td className="py-3">
+                                                            <span className="badge" style={{ background: progressCount > 0 ? '#d1e7dd' : '#f8f9fa', color: progressCount > 0 ? '#0f5132' : '#6c757d', fontWeight: 600 }}>
+                                                                <i className="bi bi-bar-chart-line me-1"></i>{progressCount} record{progressCount !== 1 ? 's' : ''}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-3">
+                                                            <button className="btn btn-sm text-white fw-semibold" style={{ background: 'linear-gradient(135deg,#4a9eff,#1a6fc4)', border: 'none', borderRadius: '8px', whiteSpace: 'nowrap' }}
+                                                                onClick={() => { setEditingProgress(null); setShowProgressModal(true); }}>
+                                                                <i className="bi bi-plus-lg me-1"></i>Add Progress
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {batches.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="10" className="text-center py-5">
+                                                        <i className="bi bi-grid fs-1 d-block mb-3" style={{ color: '#fd7e14', opacity: 0.5 }}></i>
+                                                        <p className="fw-semibold text-muted mb-1">No Batches Assigned</p>
+                                                        <p className="text-muted small">You have not been assigned to any batch yet. Please contact your admin.</p>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         )}
-                    </div>
-                )}
-
-                {/* ─── Students Tab ───────────────────────────────────────── */}
-                {activeTab === "students" && (
-                    <div className="card border-0 shadow" style={{ borderRadius: '12px', overflow: 'hidden' }}>
-                        <div className="table-responsive">
-                            <table className="table table-hover mb-0">
-                                <thead style={{ background: "#1a1e2b", color: "white" }}>
-                                    <tr>
-                                        <th className="py-3 ps-4">#</th>
-                                        <th className="py-3">Name</th>
-                                        <th className="py-3">Email</th>
-                                        <th className="py-3">Phone</th>
-                                        <th className="py-3">Course</th>
-                                        <th className="py-3">Batch</th>
-                                        <th className="py-3">Status</th>
-                                        <th className="py-3">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {students.map((s, idx) => (
-                                        <tr key={s.id} className="align-middle">
-                                            <td className="py-3 ps-4 text-muted">{idx + 1}</td>
-                                            <td className="py-3">
-                                                <div className="d-flex align-items-center">
-                                                    <div className="rounded-circle d-flex align-items-center justify-content-center me-2"
-                                                        style={{ width: '34px', height: '34px', background: '#e6f0ff', flexShrink: 0 }}>
-                                                        <i className="bi bi-person-fill" style={{ color: '#4a9eff', fontSize: '0.9rem' }}></i>
-                                                    </div>
-                                                    <span className="fw-semibold">{s.name}</span>
-                                                </div>
-                                            </td>
-                                            <td className="py-3">{s.email}</td>
-                                            <td className="py-3">{s.phone || '—'}</td>
-                                            <td className="py-3">{s.course || '—'}</td>
-                                            <td className="py-3">
-                                                <span className="badge" style={{ background: '#e6f0ff', color: '#4a9eff' }}>{s.batch || 'Not Assigned'}</span>
-                                            </td>
-                                            <td className="py-3">
-                                                <span className={`badge ${s.status === "Active" ? "bg-success" : "bg-secondary"}`}>{s.status}</span>
-                                            </td>
-                                            <td className="py-3">
-                                                <button className="btn btn-sm text-white px-3" style={{ background: '#4a9eff', border: 'none', borderRadius: '8px' }}
-                                                    onClick={() => { setEditingTask(null); setShowAddTaskModal(true); }}>
-                                                    <i className="bi bi-plus-lg me-1"></i>Add Task
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {students.length === 0 && (
-                                        <tr><td colSpan="8" className="text-center py-5 text-muted"><i className="bi bi-inbox fs-1 d-block mb-3"></i>No students found.</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    </>
                 )}
             </div>
 
-            {/* ─── Modals ────────────────────────────────────────────────── */}
-            <AddTaskModal show={showAddTaskModal} onClose={() => { setShowAddTaskModal(false); setEditingTask(null); }}
-                students={students} editingTask={editingTask}
-                onAddTask={editingTask ? handleUpdateTask : handleAddTask} />
-            <ViewTaskModal show={showViewTaskModal} onClose={() => setShowViewTaskModal(false)}
-                task={selectedTask} studentName={selectedTask ? getStudentName(selectedTask.studentId) : ""} />
-            <DeleteConfirmationModal show={showDeleteModal} onClose={() => setShowDeleteModal(false)}
-                onConfirm={confirmDelete} taskTitle={taskToDelete?.title} />
-            <LogoutConfirmationModal show={showLogoutModal} onClose={() => setShowLogoutModal(false)} onConfirm={confirmLogout} />
+            {/* ─── Modals ───────────────────────────────────────────────────── */}
+            <BatchProgressModal
+                show={showProgressModal}
+                onClose={() => { setShowProgressModal(false); setEditingProgress(null); }}
+                onSave={handleSaveProgress}
+                editing={editingProgress}
+                myBatches={batches}
+            />
+            <ViewProgressModal
+                show={showViewModal}
+                onClose={() => { setShowViewModal(false); setViewingProgress(null); }}
+                progress={viewingProgress}
+                batchName={viewingProgress ? getBatchName(viewingProgress.batchId) : ''}
+            />
+            <DeleteModal
+                show={showDeleteModal}
+                onClose={() => { setShowDeleteModal(false); setDeletingProgress(null); }}
+                onConfirm={confirmDelete}
+                title={deletingProgress?.title}
+            />
+            <LogoutModal show={showLogout} onClose={() => setShowLogout(false)} onConfirm={confirmLogout} />
         </div>
     );
 };
