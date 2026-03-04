@@ -75,7 +75,11 @@ function BatchProgressModal({ show, onClose, onSave, editing, myBatches }) {
     const handleFile = (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        if (file.size > 5 * 1024 * 1024) { alert('File size must be under 5MB'); e.target.value = ''; return; }
+        if (file.size > 400 * 1024) { // Allow up to 400KB raw (~550KB base64). Ensure JSON Server is started with a higher max-body-size.
+            alert('File size must be under 400KB to avoid server payload limits');
+            e.target.value = '';
+            return;
+        }
         setUploading(true);
         const reader = new FileReader();
         reader.onload = (ev) => { setForm(f => ({ ...f, documentName: file.name, documentData: ev.target.result })); setUploading(false); };
@@ -316,7 +320,11 @@ const TrainerDashboard = () => {
             setEditingProgress(null);
         } catch (err) {
             console.error("Save error:", err);
-            showToast("Failed to save. Please try again.", "error");
+            if (err.response && err.response.status === 413) {
+                showToast("File too large. Please upload a smaller file (max 75KB).", "error");
+            } else {
+                showToast("Failed to save. Please try again.", "error");
+            }
         }
     };
 

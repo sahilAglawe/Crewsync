@@ -229,6 +229,7 @@ const AnalystDashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [batches, setBatches] = useState([]);
+  const [trainers, setTrainers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -249,7 +250,7 @@ const AnalystDashboard = () => {
 
   // Form state for batch
   const [newBatch, setNewBatch] = useState({
-    batchName: "", course: "", trainer: "", startDate: "", endDate: "",
+    batchName: "", course: "", trainer: "", trainerId: "", startDate: "", endDate: "",
     maxStudents: "", mode: "Online", status: "Upcoming", studentsEnrolled: 0
   });
   const [editingBatch, setEditingBatch] = useState(null);
@@ -277,8 +278,23 @@ const AnalystDashboard = () => {
     }
   };
 
+  // ─── Fetch trainers from users ─────────────────────────────────
+  const fetchTrainers = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/users`);
+      const trainerList = response.data.filter(
+        (u) => u.role === "TRAINER" && u.status === "Active"
+      );
+      setTrainers(trainerList);
+    } catch (error) {
+      console.error("Error fetching trainers:", error);
+      showToast("Failed to load trainers", "error");
+    }
+  };
+
   useEffect(() => {
     fetchBatches();
+    fetchTrainers();
   }, []);
 
   // ─── Stats ─────────────────────────────────────────────────────
@@ -295,7 +311,7 @@ const AnalystDashboard = () => {
 
   // ─── Create Batch ──────────────────────────────────────────────
   const handleCreateBatch = async () => {
-    if (!newBatch.batchName || !newBatch.course || !newBatch.trainer || !newBatch.startDate || !newBatch.endDate || !newBatch.maxStudents) {
+    if (!newBatch.batchName || !newBatch.course || !newBatch.trainerId || !newBatch.startDate || !newBatch.endDate || !newBatch.maxStudents) {
       showToast("Please fill all required fields", "warning");
       return;
     }
@@ -350,7 +366,7 @@ const AnalystDashboard = () => {
 
   // ─── Reset form ────────────────────────────────────────────────
   const resetForm = () => {
-    setNewBatch({ batchName: "", course: "", trainer: "", startDate: "", endDate: "", maxStudents: "", mode: "Online", status: "Upcoming", studentsEnrolled: 0 });
+    setNewBatch({ batchName: "", course: "", trainer: "", trainerId: "", startDate: "", endDate: "", maxStudents: "", mode: "Online", status: "Upcoming", studentsEnrolled: 0 });
   };
 
   // ─── Logout ────────────────────────────────────────────────────
@@ -658,9 +674,32 @@ const AnalystDashboard = () => {
                   <label className="form-label fw-semibold">Trainer <span className="text-danger">*</span></label>
                   <div className="input-group">
                     <span className="input-group-text bg-light"><i className="bi bi-person"></i></span>
-                    <input type="text" className="form-control" placeholder="Trainer name"
-                      value={newBatch.trainer} onChange={e => setNewBatch({ ...newBatch, trainer: e.target.value })} required />
+                    <select
+                      className="form-select"
+                      value={newBatch.trainerId}
+                      onChange={e => {
+                        const selected = trainers.find(t => t.id === e.target.value || String(t.id) === e.target.value);
+                        setNewBatch({
+                          ...newBatch,
+                          trainerId: e.target.value,
+                          trainer: selected ? selected.name : ""
+                        });
+                      }}
+                      required
+                    >
+                      <option value="">-- Select a Trainer --</option>
+                      {trainers.map(t => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}{t.expertise ? ` (${t.expertise})` : ""}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+                  {trainers.length === 0 && (
+                    <small className="text-muted mt-1 d-block">
+                      <i className="bi bi-info-circle me-1"></i>No active trainers found in the system.
+                    </small>
+                  )}
                 </div>
                 <div className="col-md-6">
                   <label className="form-label fw-semibold">Max Students <span className="text-danger">*</span></label>
