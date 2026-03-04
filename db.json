@@ -9,33 +9,6 @@
       "password": "admin123"
     },
     {
-      "id": "1",
-      "name": "Jane Smith",
-      "email": "jane@example.com",
-      "role": "TRAINER",
-      "status": "Active",
-      "phone": "jjn",
-      "password": "m,ndn",
-      "joiningDate": "",
-      "salary": "43",
-      "expertise": "e",
-      "batchCapacity": "e"
-    },
-    {
-      "id": "2",
-      "name": "Mike Johnsonr",
-      "email": "mike@example.com",
-      "role": "ANALYST",
-      "status": "Active",
-      "experience": "0-1",
-      "phone": "fr",
-      "password": "rf",
-      "joiningDate": "",
-      "salary": "4",
-      "tools": "",
-      "analysisType": ""
-    },
-    {
       "id": "1771909973732",
       "name": "mahesh chine",
       "email": "sahilaglawe66@gmail.com",
@@ -113,6 +86,19 @@
       "role": "TRAINER",
       "expertise": "java",
       "batchCapacity": "25"
+    },
+    {
+      "id": 1772601850484,
+      "name": "ramesh",
+      "email": "ramesh@gmail.com",
+      "phone": "8943893444",
+      "password": "ramesh123",
+      "status": "Active",
+      "joiningDate": "2026-03-13",
+      "salary": "",
+      "role": "TRAINER",
+      "expertise": "",
+      "batchCapacity": ""
     }
   ],
   "batches": [
