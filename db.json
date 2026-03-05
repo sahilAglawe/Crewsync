@@ -59,6 +59,19 @@
       "role": "COUNSELOR",
       "specialties": "",
       "sessionMode": ""
+    },
+    {
+      "id": 1772686666597,
+      "name": "mahesh c",
+      "email": "mahesh@gmail.com",
+      "phone": "5767674543",
+      "password": "mahesh",
+      "status": "Active",
+      "joiningDate": "2026-03-05",
+      "salary": "33",
+      "role": "COUNSELOR",
+      "specialties": "",
+      "sessionMode": ""
     }
   ],
   "batches": [
