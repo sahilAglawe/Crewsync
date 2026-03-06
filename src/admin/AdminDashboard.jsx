@@ -108,23 +108,6 @@ const AddUserModal = ({ show, onClose, activeTab, newUser, setNewUser, editingUs
                     </div>
                   </div>
                 </div>
-                {activeTab === "trainer" && (
-                  <div className="col-12 mt-3">
-                    <h6 className="fw-bold mb-3"><i className="bi bi-person-workspace me-2" style={{ color: '#4a9eff' }}></i>Trainer Details</h6>
-                    <div className="row g-3">
-                      <div className="col-md-6">
-                        <label className="form-label small fw-semibold">Expertise</label>
-                        <input type="text" className="form-control" value={newUser.expertise}
-                          onChange={e => setNewUser({ ...newUser, expertise: e.target.value })} />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label small fw-semibold">Batch Capacity</label>
-                        <input type="text" className="form-control" value={newUser.batchCapacity}
-                          onChange={e => setNewUser({ ...newUser, batchCapacity: e.target.value })} />
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
             <div className="modal-footer border-0 bg-light">
