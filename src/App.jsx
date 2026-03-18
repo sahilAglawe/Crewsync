@@ -12,6 +12,8 @@ import AnalystDashboard from './analyst/analystDashboard.jsx';
 import axios from 'axios';
 import CounsellorDashboard from './counsellor/counsellorDashboard.jsx';
 import TrainerDashboard from './trainer/trainerDashboard.jsx';
+import API from './api';
+import Students from './Student.jsx';
 
 // Route guard — checks if user is logged in and has the correct role
 function ProtectedRoute({ children, allowedRole }) {
@@ -65,6 +67,7 @@ function App() {
       />
       <BrowserRouter>
         <Routes>
+          <Route path="/students" element={<Students />} />
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/admindashboard" element={

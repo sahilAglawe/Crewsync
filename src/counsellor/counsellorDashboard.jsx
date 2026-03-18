@@ -4,7 +4,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import axios from "axios";
 
-const API_URL = "http://localhost:5000";
+const API_URL = "http://localhost:8080";
 
 // ─── Toast Components ──────────────────────────────────────────────────
 function ToastContainer({ toasts, removeToast }) {
@@ -452,8 +452,17 @@ const CounsellorDashboard = () => {
 
     const fetchBatches = useCallback(async () => {
         try {
-            const res = await axios.get(`${API_URL}/batches`);
-            setBatches(res.data);
+            const res = await axios.get(`${API_URL}/api/analysts/batches`);
+            const mapped = res.data.map(b => ({
+                ...b,
+                batchName: b.name || b.batchName || "",
+                status: b.batchstatus ? b.batchstatus.charAt(0) + b.batchstatus.slice(1).toLowerCase() : (b.status || "Upcoming"),
+                mode: b.mode ? b.mode.charAt(0) + b.mode.slice(1).toLowerCase() : (b.mode || "Online"),
+                studentsEnrolled: b.studentsEnrolled || 0,
+                trainer: b.trainer || "",
+                trainerId: b.trainerId || ""
+            }));
+            setBatches(mapped);
         } catch (e) {
             console.error("Error fetching batches", e);
             setBatches([]);
@@ -463,7 +472,7 @@ const CounsellorDashboard = () => {
     const fetchStudents = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`${API_URL}/students`);
+            const res = await axios.get(`${API_URL}/api/counsellors/students`);
             setStudents(res.data);
         } catch (e) {
             console.error("Error fetching students", e);
@@ -504,23 +513,27 @@ const CounsellorDashboard = () => {
     };
 
     const handleSaveAddModal = async () => {
-        if (!newStudent.name || !newStudent.email || !newStudent.course) {
-            showToast("Please fill all required fields", "warning");
+        if (!newStudent.name || !newStudent.email) {
+            showToast("Please fill all required fields (name and email)", "warning");
             return;
         }
-        const generatedId = typeof crypto !== "undefined" && crypto.randomUUID
-            ? crypto.randomUUID()
-            : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-        const payload = { ...newStudent, id: generatedId };
+        const payload = {
+            name: newStudent.name,
+            email: newStudent.email,
+            phone: newStudent.phone || null,
+            course: newStudent.course || null,
+            password: newStudent.password || "default123",
+            counsellorId: currentUser.id ? parseInt(currentUser.id) : null
+        };
         try {
-            const res = await axios.post(`${API_URL}/students`, payload);
-            setStudents((prev) => [...prev, res.data]);
+            const res = await axios.post(`${API_URL}/api/counsellors/students`, payload);
+            await fetchStudents();
             resetForm();
             setShowAddStudentModal(false);
             showToast("Student added successfully", "success");
         } catch (e) {
             console.error(e);
-            showToast("Failed to add student", "error");
+            showToast(e.response?.data?.message || "Failed to add student", "error");
         }
     };
 
@@ -533,11 +546,18 @@ const CounsellorDashboard = () => {
     const handleUpdateStudent = async () => {
         if (!editingStudent) return;
         try {
-            const res = await axios.put(`${API_URL}/students/${editingStudent.id}`, newStudent);
-            setStudents((prev) => prev.map((s) => (s.id === editingStudent.id ? res.data : s)));
+            const payload = {
+                name: newStudent.name,
+                email: newStudent.email,
+                phone: newStudent.phone || null,
+                course: newStudent.course || null,
+                password: newStudent.password || undefined
+            };
+            await axios.put(`${API_URL}/api/counsellors/students/${editingStudent.id}`, payload);
+            await fetchStudents();
             resetForm();
             setShowAddStudentModal(false);
-            showToast("Student updated", "success");
+            showToast("Student updated successfully", "success");
         } catch (e) {
             console.error(e);
             showToast("Failed to update student", "error");
@@ -552,15 +572,7 @@ const CounsellorDashboard = () => {
     const confirmDelete = async () => {
         if (!studentToDelete) return;
         try {
-            await axios.delete(`${API_URL}/students/${studentToDelete.id}`);
-            if (studentToDelete.batch && studentToDelete.batch.trim() !== "") {
-                const batchObj = batches.find((b) => b.batchName === studentToDelete.batch);
-                if (batchObj && (batchObj.studentsEnrolled || 0) > 0) {
-                    const updatedCount = (batchObj.studentsEnrolled || 0) - 1;
-                    await axios.patch(`${API_URL}/batches/${batchObj.id}`, { studentsEnrolled: updatedCount });
-                    fetchBatches();
-                }
-            }
+            await axios.delete(`${API_URL}/api/counsellors/students/${studentToDelete.id}`);
             setStudents((prev) => prev.filter((s) => s.id !== studentToDelete.id));
             setShowDeleteModal(false);
             setStudentToDelete(null);
@@ -578,9 +590,13 @@ const CounsellorDashboard = () => {
 
     const handleAssignBatch = async (studentId, batchName, course, batchObj) => {
         try {
-            await axios.patch(`${API_URL}/students/${studentId}`, { batch: batchName, course });
-            const updatedCount = (batchObj.studentsEnrolled || 0) + 1;
-            await axios.patch(`${API_URL}/batches/${batchObj.id}`, { studentsEnrolled: updatedCount });
+            await axios.put(`${API_URL}/api/counsellors/students/${studentId}`, {
+                name: students.find(s => String(s.id) === String(studentId))?.name,
+                email: students.find(s => String(s.id) === String(studentId))?.email,
+                phone: students.find(s => String(s.id) === String(studentId))?.phone,
+                password: students.find(s => String(s.id) === String(studentId))?.password || "default123",
+                batchId: batchObj.id
+            });
             setShowAssignBatchModal(false);
             fetchStudents();
             fetchBatches();

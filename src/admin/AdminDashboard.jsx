@@ -4,7 +4,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import axios from "axios";
 
-const API_URL = "http://localhost:5000";
+const API_URL = "http://localhost:8080";
 
 // ─── Toast Components ──────────────────────────────────────────────────
 function ToastContainer({ toasts, removeToast }) {
@@ -296,17 +296,28 @@ const AdminDashboard = () => {
     fetchUsers();
   }, []);
 
-  const fetchUsers = () => {
-    axios.get(`${API_URL}/users`)
-      .then(response => {
-        setUsers(response.data);
-        setFilteredUsers(response.data);
-        updateStats(response.data);
-      })
-      .catch(error => {
-        console.error("Error fetching users:", error);
-        showToast("Failed to fetch users", "error");
-      });
+  const mapStatus = (empstatus) => empstatus === "ACTIVE" ? "Active" : empstatus === "INACTIVE" ? "Inactive" : "Active";
+
+  const fetchUsers = async () => {
+    try {
+      const [trainersRes, analystsRes, counsellorsRes] = await Promise.all([
+        axios.get(`${API_URL}/api/admin/trainers`),
+        axios.get(`${API_URL}/api/admin/analysts`),
+        axios.get(`${API_URL}/api/admin/counsellors`)
+      ]);
+
+      const trainers = trainersRes.data.map(u => ({ ...u, role: "TRAINER", status: mapStatus(u.empstatus) }));
+      const analysts = analystsRes.data.map(u => ({ ...u, role: "ANALYST", status: mapStatus(u.empstatus) }));
+      const counsellors = counsellorsRes.data.map(u => ({ ...u, role: "COUNSELOR", status: mapStatus(u.empstatus) }));
+
+      const allUsers = [...trainers, ...analysts, ...counsellors];
+      setUsers(allUsers);
+      setFilteredUsers(allUsers);
+      updateStats(allUsers);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      showToast("Failed to fetch users", "error");
+    }
   };
 
   // Apply filters
@@ -343,17 +354,18 @@ const AdminDashboard = () => {
       showToast("Please fill all required fields", "warning");
       return;
     }
-    const roleSpecificData = role === "TRAINER" ? { expertise: newUser.expertise, batchCapacity: newUser.batchCapacity }
-      : role === "ANALYST" ? { tools: newUser.tools, analysisType: newUser.analysisType }
-        : { specialties: newUser.specialties, sessionMode: newUser.sessionMode };
+    const endpointMap = { "TRAINER": "/api/admin/trainers", "ANALYST": "/api/admin/analysts", "COUNSELOR": "/api/admin/counsellors" };
+    const endpoint = endpointMap[role];
+    if (!endpoint) { showToast("Invalid role selected", "error"); return; }
 
     const newEntry = {
-      id: Date.now(), name: newUser.name, email: newUser.email, phone: newUser.phone,
-      password: newUser.password, status: newUser.status, joiningDate: newUser.joiningDate,
-      salary: newUser.salary, role, ...roleSpecificData
+      name: newUser.name, email: newUser.email, phone: newUser.phone,
+      password: newUser.password, joiningDate: newUser.joiningDate || null,
+      salary: newUser.salary || null,
+      empstatus: newUser.status === "Inactive" ? "INACTIVE" : "ACTIVE"
     };
 
-    axios.post(`${API_URL}/users`, newEntry)
+    axios.post(`${API_URL}${endpoint}`, newEntry)
       .then(() => { fetchUsers(); resetForm(); setShowAddModal(false); showToast(`${role.charAt(0) + role.slice(1).toLowerCase()} added successfully!`); })
       .catch(error => { console.error("Error adding user:", error); showToast("Failed to add user", "error"); });
   };
@@ -363,7 +375,10 @@ const AdminDashboard = () => {
 
   const confirmDelete = () => {
     if (userToDelete) {
-      axios.delete(`${API_URL}/users/${userToDelete.id}`)
+      const endpointMap = { "TRAINER": "/api/admin/trainers", "ANALYST": "/api/admin/analysts", "COUNSELOR": "/api/admin/counsellors" };
+      const endpoint = endpointMap[userToDelete.role];
+      if (!endpoint) { showToast("Cannot delete this user type", "error"); setShowDeleteModal(false); return; }
+      axios.delete(`${API_URL}${endpoint}/${userToDelete.id}`)
         .then(() => { fetchUsers(); setShowDeleteModal(false); setUserToDelete(null); showToast("User deleted successfully!"); })
         .catch(error => { console.error("Error deleting user:", error); showToast("Failed to delete user", "error"); });
     }
@@ -386,17 +401,18 @@ const AdminDashboard = () => {
 
   const handleUpdate = () => {
     if (!editingUser) return;
-    const roleSpecificData = editingUser.role === "TRAINER" ? { expertise: newUser.expertise, batchCapacity: newUser.batchCapacity }
-      : editingUser.role === "ANALYST" ? { tools: newUser.tools, analysisType: newUser.analysisType }
-        : { specialties: newUser.specialties, sessionMode: newUser.sessionMode };
+    const endpointMap = { "TRAINER": "/api/admin/trainers", "ANALYST": "/api/admin/analysts", "COUNSELOR": "/api/admin/counsellors" };
+    const endpoint = endpointMap[editingUser.role];
+    if (!endpoint) { showToast("Cannot update this user type", "error"); return; }
 
     const updatedEntry = {
-      ...editingUser, name: newUser.name, email: newUser.email, phone: newUser.phone,
-      password: newUser.password, status: newUser.status, joiningDate: newUser.joiningDate,
-      salary: newUser.salary, ...roleSpecificData
+      name: newUser.name, email: newUser.email, phone: newUser.phone,
+      password: newUser.password, joiningDate: newUser.joiningDate || null,
+      salary: newUser.salary || null,
+      empstatus: newUser.status === "Inactive" ? "INACTIVE" : "ACTIVE"
     };
 
-    axios.put(`${API_URL}/users/${editingUser.id}`, updatedEntry)
+    axios.put(`${API_URL}${endpoint}/${editingUser.id}`, updatedEntry)
       .then(() => { fetchUsers(); setEditingUser(null); resetForm(); setShowAddModal(false); showToast("User updated successfully!"); })
       .catch(error => { console.error("Error updating user:", error); showToast("Failed to update user", "error"); });
   };

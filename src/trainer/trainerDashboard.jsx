@@ -4,7 +4,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import axios from "axios";
 
-const API_URL = "http://localhost:5000";
+const API_URL = "http://localhost:8080";
 
 // ─── Toast ─────────────────────────────────────────────────────────────────
 function ToastContainer({ toasts, removeToast }) {
@@ -75,8 +75,8 @@ function BatchProgressModal({ show, onClose, onSave, editing, myBatches }) {
     const handleFile = (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        if (file.size > 400 * 1024) { // Allow up to 400KB raw (~550KB base64). Ensure JSON Server is started with a higher max-body-size.
-            alert('File size must be under 400KB to avoid server payload limits');
+        if (file.size > 5 * 1024 * 1024) { // Allow up to 5MB
+            alert('File size must be under 5MB');
             e.target.value = '';
             return;
         }
@@ -268,18 +268,25 @@ const TrainerDashboard = () => {
         setLoading(true);
         try {
             const [bRes, sRes, pRes] = await Promise.all([
-                axios.get(`${API_URL}/batches`),
-                axios.get(`${API_URL}/students`),
-                axios.get(`${API_URL}/batchProgress`)
+                axios.get(`${API_URL}/api/analysts/batches`),
+                axios.get(`${API_URL}/api/counsellors/students`),
+                axios.get(`${API_URL}/api/trainers/progress`)
             ]);
-            const myBatches = bRes.data.filter(b => b.trainerId === currentUser.id);
+            const mappedBatches = bRes.data.map(b => ({
+                ...b,
+                batchName: b.name || b.batchName || "",
+                status: b.batchstatus ? b.batchstatus.charAt(0) + b.batchstatus.slice(1).toLowerCase() : (b.status || "Upcoming"),
+                mode: b.mode ? b.mode.charAt(0) + b.mode.slice(1).toLowerCase() : (b.mode || "Online"),
+                studentsEnrolled: b.studentsEnrolled || 0
+            }));
+            const myBatches = mappedBatches.filter(b => b.trainerId === currentUser.id || String(b.trainerId) === String(currentUser.id));
             setBatches(myBatches);
             setStudents(sRes.data);
-            const myProgress = pRes.data.filter(p => p.trainerId === currentUser.id);
+            const myProgress = pRes.data.filter(p => p.trainerId === currentUser.id || String(p.trainerId) === String(currentUser.id));
             setBatchProgress(myProgress);
         } catch (err) {
             console.error("Fetch error:", err);
-            showToast("Failed to load data. Ensure json-server is running.", "error");
+            showToast("Failed to load data. Please check if the server is running.", "error");
         } finally {
             setLoading(false);
         }
@@ -307,12 +314,12 @@ const TrainerDashboard = () => {
         try {
             if (editingProgress) {
                 const updated = { ...editingProgress, ...form, updatedAt: new Date().toISOString() };
-                await axios.put(`${API_URL}/batchProgress/${editingProgress.id}`, updated);
+                await axios.put(`${API_URL}/api/trainers/progress/${editingProgress.id}`, updated);
                 setBatchProgress(prev => prev.map(p => p.id === editingProgress.id ? updated : p));
                 showToast("Batch progress updated successfully!", "success");
             } else {
-                const newp = { ...form, id: Date.now().toString(), trainerId: currentUser.id, trainerName: currentUser.name, createdAt: new Date().toISOString() };
-                const res = await axios.post(`${API_URL}/batchProgress`, newp);
+                const newp = { ...form, trainerId: currentUser.id, trainerName: currentUser.name, createdAt: new Date().toISOString() };
+                const res = await axios.post(`${API_URL}/api/trainers/progress`, newp);
                 setBatchProgress(prev => [...prev, res.data]);
                 showToast("Batch progress added successfully!", "success");
             }
@@ -331,7 +338,7 @@ const TrainerDashboard = () => {
     // ─── Delete Progress ─────────────────────────────────────────────
     const confirmDelete = async () => {
         try {
-            await axios.delete(`${API_URL}/batchProgress/${deletingProgress.id}`);
+            await axios.delete(`${API_URL}/api/trainers/progress/${deletingProgress.id}`);
             setBatchProgress(prev => prev.filter(p => p.id !== deletingProgress.id));
             setShowDeleteModal(false);
             setDeletingProgress(null);

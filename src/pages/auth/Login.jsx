@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { toast } from "react-toastify";
+import axios from "axios";
+
+const API_BASE = "http://localhost:8080";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -14,32 +17,6 @@ const Login = () => {
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [users, setUsers] = useState([]);
-
-  // Fetch users on component mount
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      // Fetch users from db.json using json-server
-      const response = await fetch("http://localhost:5000/users");
-      const data = await response.json();
-
-      // Log the response to verify data structure
-      console.log("Fetched users:", data);
-
-      setUsers(data);
-      setError(""); // Clear any previous errors
-    } catch (err) {
-      console.error("Error fetching users:", err);
-      setError("Failed to load user data. Please check if json-server is running on port 5000.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleChange = (e) => {
     setFormData({
@@ -63,145 +40,71 @@ const Login = () => {
         return;
       }
 
-      // Fetch fresh data directly from API to ensure we have latest data
-      const response = await fetch("http://localhost:5000/users");
-      const usersData = await response.json();
+      // Call the backend login API
+      const response = await axios.post(`${API_BASE}/api/auth/login`, {
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+      });
 
-      // Find user with matching email and role
-      const user = usersData.find(
-        (u) =>
-          u.email.toLowerCase() === formData.email.toLowerCase() &&
-          u.role === formData.role
+      const user = response.data;
+
+      // Successful login
+      console.log("Login successful for user:", user);
+
+      // Save login status and user data
+      localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("role", user.role);
+      localStorage.setItem("userId", user.id);
+      localStorage.setItem("userName", user.name || "");
+      localStorage.setItem("userEmail", user.email);
+
+      // Store full user data if needed
+      localStorage.setItem("userData", JSON.stringify(user));
+      localStorage.setItem("loginSuccess", "true");
+
+      // Show success toast notification
+      const roleName = user.role.charAt(0) + user.role.slice(1).toLowerCase();
+      toast.success(
+        `🎉 Welcome back, ${user.name || "User"}! Logged in as ${roleName}.`,
+        {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        }
       );
 
-      if (user) {
-        // Check password
-        if (user.password === formData.password) {
-          // Successful login
-          console.log("Login successful for user:", user);
-
-          // Save login status and user data
-          localStorage.setItem("isLoggedIn", "true");
-          localStorage.setItem("role", user.role);
-          localStorage.setItem("userId", user.id);
-          localStorage.setItem("userName", user.name || "");
-          localStorage.setItem("userEmail", user.email);
-
-          // Store full user data if needed
-          localStorage.setItem("userData", JSON.stringify(user));
-          localStorage.setItem("loginSuccess", "true");
-
-          // Show success toast notification
-          const roleName = user.role.charAt(0) + user.role.slice(1).toLowerCase();
-          toast.success(
-            `🎉 Welcome back, ${user.name || "User"}! Logged in as ${roleName}.`,
-            {
-              position: "top-right",
-              autoClose: 3000,
-              hideProgressBar: false,
-              closeOnClick: true,
-              pauseOnHover: true,
-              draggable: true,
-            }
-          );
-
-          // Navigate based on the user's role
-          switch (user.role) {
-            case "ADMIN":
-              navigate("/admindashboard");
-              break;
-            case "ANALYST":
-              navigate("/analystdashboard");
-              break;
-            case "TRAINER":
-              navigate("/trainerdashboard");
-              break;
-            case "COUNSELOR":
-              navigate("/counsellordashboard");
-              break;
-            default:
-              navigate("/dashboard");
-          }
-        } else {
-          setError("Invalid password. Please try again.");
-        }
-      } else {
-        setError("No account found with this email and role combination.");
+      // Navigate based on the user's role
+      switch (user.role) {
+        case "ADMIN":
+          navigate("/admindashboard");
+          break;
+        case "ANALYST":
+          navigate("/analystdashboard");
+          break;
+        case "TRAINER":
+          navigate("/trainerdashboard");
+          break;
+        case "COUNSELOR":
+          navigate("/counsellordashboard");
+          break;
+        default:
+          navigate("/dashboard");
       }
     } catch (err) {
       console.error("Login error:", err);
-      setError("Login failed. Please check if json-server is running.");
+      if (err.response && err.response.status === 401) {
+        setError("Invalid email or password. Please try again.");
+      } else if (err.response && err.response.data && err.response.data.error) {
+        setError(err.response.data.error);
+      } else {
+        setError("Login failed. Please check if the server is running.");
+      }
     } finally {
       setLoading(false);
-    }
-  };
-
-  // For demo purposes, this function will show available users for each role
-  const showDemoCredentials = () => {
-    const usersByRole = {
-      ADMIN: users.filter(u => u.role === "ADMIN"),
-      ANALYST: users.filter(u => u.role === "ANALYST"),
-      TRAINER: users.filter(u => u.role === "TRAINER"),
-      COUNSELOR: users.filter(u => u.role === "COUNSELOR")
-    };
-
-    let message = "Demo Credentials:\n\n";
-
-    if (usersByRole.ADMIN.length > 0) {
-      message += "🔹 ADMIN:\n";
-      usersByRole.ADMIN.forEach(u => {
-        message += `   Email: ${u.email}\n`;
-        message += `   Password: ${u.password || 'No password set'}\n`;
-        message += `   Name: ${u.name || 'N/A'}\n\n`;
-      });
-    }
-
-    if (usersByRole.ANALYST.length > 0) {
-      message += "🔹 ANALYST:\n";
-      usersByRole.ANALYST.forEach(u => {
-        message += `   Email: ${u.email}\n`;
-        message += `   Password: ${u.password || 'vijay123'}\n`;
-        message += `   Name: ${u.name || 'N/A'}\n\n`;
-      });
-    }
-
-    if (usersByRole.TRAINER.length > 0) {
-      message += "🔹 TRAINER:\n";
-      usersByRole.TRAINER.forEach(u => {
-        message += `   Email: ${u.email}\n`;
-        message += `   Password: ${u.password || 'No password set'}\n`;
-        message += `   Name: ${u.name || 'N/A'}\n\n`;
-      });
-    }
-
-    if (usersByRole.COUNSELOR.length > 0) {
-      message += "🔹 COUNSELOR:\n";
-      usersByRole.COUNSELOR.forEach(u => {
-        message += `   Email: ${u.email}\n`;
-        message += `   Password: ${u.password || 'shrikant'}\n`;
-        message += `   Name: ${u.name || 'N/A'}\n\n`;
-      });
-    }
-
-    if (message === "Demo Credentials:\n\n") {
-      message = "No users found in the database. Please check if json-server is running.";
-    }
-
-    alert(message);
-  };
-
-  // Quick fill demo credentials based on selected role
-  const fillDemoCredentials = () => {
-    const roleUsers = users.filter(u => u.role === formData.role);
-    if (roleUsers.length > 0) {
-      const demoUser = roleUsers[0];
-      setFormData({
-        ...formData,
-        email: demoUser.email,
-        password: demoUser.password || ''
-      });
-    } else {
-      alert(`No ${formData.role} users found in the database.`);
     }
   };
 
@@ -224,9 +127,6 @@ const Login = () => {
         <div className="text-center mb-4">
           <h2 className="fw-bold text-primary">CrewSync</h2>
           <p className="text-muted">Employee Management Login</p>
-          {users.length > 0 && (
-            <span className="badge bg-success"></span>
-          )}
         </div>
 
         {/* Error */}
@@ -302,17 +202,6 @@ const Login = () => {
             {loading ? "Logging in..." : "Login"}
           </button>
         </form>
-
-
-
-        {/* Server Status */}
-        <div className="text-center mt-2">
-          <small className="text-muted">
-            {users.length === 0 && !loading && (
-              <span className="text-warning">⚠️ Make sure json-server is running on port 5000</span>
-            )}
-          </small>
-        </div>
 
         {/* Back to Home */}
         <div className="text-center mt-3">

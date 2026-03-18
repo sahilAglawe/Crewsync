@@ -4,7 +4,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import axios from "axios";
 
-const API_URL = "http://localhost:5000";
+const API_URL = "http://localhost:8080";
 
 // ─── Toast Components ──────────────────────────────────────────────────
 function ToastContainer({ toasts, removeToast }) {
@@ -268,8 +268,17 @@ const AnalystDashboard = () => {
   const fetchBatches = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/batches`);
-      setBatches(response.data);
+      const response = await axios.get(`${API_URL}/api/analysts/batches`);
+      const mapped = response.data.map(b => ({
+        ...b,
+        batchName: b.name || b.batchName || "",
+        status: b.batchstatus ? b.batchstatus.charAt(0) + b.batchstatus.slice(1).toLowerCase() : (b.status || "Upcoming"),
+        mode: b.mode ? b.mode.charAt(0) + b.mode.slice(1).toLowerCase() : (b.mode || "Online"),
+        studentsEnrolled: b.studentsEnrolled || 0,
+        trainer: b.trainer || "",
+        trainerId: b.trainerId || ""
+      }));
+      setBatches(mapped);
     } catch (error) {
       console.error("Error fetching batches:", error);
       showToast("Failed to fetch batches", "error");
@@ -281,10 +290,9 @@ const AnalystDashboard = () => {
   // ─── Fetch trainers from users ─────────────────────────────────
   const fetchTrainers = async () => {
     try {
-      const response = await axios.get(`${API_URL}/users`);
-      const trainerList = response.data.filter(
-        (u) => u.role === "TRAINER" && u.status === "Active"
-      );
+      const response = await axios.get(`${API_URL}/api/admin/trainers`);
+      // Show all trainers (empstatus could be ACTIVE or null for new entries)
+      const trainerList = response.data.map(u => ({ ...u, status: u.empstatus || "ACTIVE" }));
       setTrainers(trainerList);
     } catch (error) {
       console.error("Error fetching trainers:", error);
@@ -311,23 +319,34 @@ const AnalystDashboard = () => {
 
   // ─── Create Batch ──────────────────────────────────────────────
   const handleCreateBatch = async () => {
-    if (!newBatch.batchName || !newBatch.course || !newBatch.trainerId || !newBatch.startDate || !newBatch.endDate || !newBatch.maxStudents) {
+    if (!newBatch.batchName || !newBatch.course || !newBatch.startDate || !newBatch.endDate || !newBatch.maxStudents) {
       showToast("Please fill all required fields", "warning");
       return;
     }
     const batchData = {
-      ...newBatch, id: Date.now().toString(), studentsEnrolled: 0,
-      createdAt: new Date().toISOString(), createdBy: currentUser.name, createdById: currentUser.id
+      name: newBatch.batchName,
+      batchName: newBatch.batchName,
+      course: newBatch.course,
+      maxStudents: parseInt(newBatch.maxStudents),
+      startDate: newBatch.startDate,
+      endDate: newBatch.endDate,
+      mode: newBatch.mode ? newBatch.mode.toUpperCase() : "ONLINE",
+      batchstatus: newBatch.status ? newBatch.status.toUpperCase() : "UPCOMING"
     };
     try {
-      const response = await axios.post(`${API_URL}/batches`, batchData);
-      setBatches([...batches, response.data]);
+      const createRes = await axios.post(`${API_URL}/api/analysts/batches`, batchData);
+      const createdBatch = createRes.data;
+      // Assign trainer if selected
+      if (newBatch.trainerId && createdBatch && createdBatch.id) {
+        await axios.put(`${API_URL}/api/analysts/batches/${createdBatch.id}/assign-trainer/${newBatch.trainerId}`);
+      }
+      await fetchBatches();
       resetForm();
       setActiveTab("dashboard");
       showToast("Batch created successfully!", "success");
     } catch (error) {
       console.error("Error creating batch:", error);
-      showToast("Failed to create batch", "error");
+      showToast(error.response?.data?.message || "Failed to create batch", "error");
     }
   };
 
@@ -336,8 +355,17 @@ const AnalystDashboard = () => {
 
   const handleUpdateBatch = async () => {
     try {
-      const response = await axios.put(`${API_URL}/batches/${editingBatch.id}`, newBatch);
-      setBatches(batches.map(b => b.id === editingBatch.id ? response.data : b));
+      const updateData = {
+        name: newBatch.batchName,
+        course: newBatch.course,
+        maxStudents: parseInt(newBatch.maxStudents),
+        startDate: newBatch.startDate,
+        endDate: newBatch.endDate,
+        mode: newBatch.mode ? newBatch.mode.toUpperCase() : "ONLINE",
+        batchstatus: newBatch.status ? newBatch.status.toUpperCase() : "UPCOMING"
+      };
+      await axios.put(`${API_URL}/api/analysts/batches/${editingBatch.id}`, updateData);
+      await fetchBatches();
       setEditingBatch(null); resetForm(); setActiveTab("dashboard");
       showToast("Batch updated successfully!", "success");
     } catch (error) {
@@ -351,7 +379,7 @@ const AnalystDashboard = () => {
 
   const confirmDelete = async () => {
     try {
-      await axios.delete(`${API_URL}/batches/${batchToDelete.id}`);
+      await axios.delete(`${API_URL}/api/analysts/batches/${batchToDelete.id}`);
       setBatches(batches.filter(b => b.id !== batchToDelete.id));
       setShowDeleteModal(false); setBatchToDelete(null);
       showToast("Batch deleted successfully!", "success");
