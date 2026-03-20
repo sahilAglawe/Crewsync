@@ -365,6 +365,11 @@ const AnalystDashboard = () => {
         batchstatus: newBatch.status ? newBatch.status.toUpperCase() : "UPCOMING"
       };
       await axios.put(`${API_URL}/api/analysts/batches/${editingBatch.id}`, updateData);
+      
+      if (newBatch.trainerId) {
+        await axios.put(`${API_URL}/api/analysts/batches/${editingBatch.id}/assign-trainer/${newBatch.trainerId}`);
+      }
+
       await fetchBatches();
       setEditingBatch(null); resetForm(); setActiveTab("dashboard");
       showToast("Batch updated successfully!", "success");
