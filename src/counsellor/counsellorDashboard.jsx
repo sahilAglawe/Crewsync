@@ -590,11 +590,11 @@ const CounsellorDashboard = () => {
 
     const handleAssignBatch = async (studentId, batchName, course, batchObj) => {
         try {
+            const student = students.find(s => String(s.id) === String(studentId));
             await axios.put(`${API_URL}/api/counsellors/students/${studentId}`, {
-                name: students.find(s => String(s.id) === String(studentId))?.name,
-                email: students.find(s => String(s.id) === String(studentId))?.email,
-                phone: students.find(s => String(s.id) === String(studentId))?.phone,
-                password: students.find(s => String(s.id) === String(studentId))?.password || "default123",
+                name: student?.name,
+                email: student?.email,
+                phone: student?.phone,
                 batchId: batchObj.id
             });
             setShowAssignBatchModal(false);
