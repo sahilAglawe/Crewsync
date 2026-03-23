@@ -15,13 +15,13 @@ import TrainerDashboard from './trainer/trainerDashboard.jsx';
 import API from './api';
 import Students from './Student.jsx';
 
-// Route guard — checks if user is logged in and has the correct role
+// Route guard — checks if user has a valid JWT token and the correct role
 function ProtectedRoute({ children, allowedRole }) {
-  const isLoggedIn = localStorage.getItem("isLoggedIn");
+  const token = localStorage.getItem("token");
   const userRole = localStorage.getItem("role");
 
-  // Not logged in at all → go to login
-  if (!isLoggedIn) {
+  // No token → go to login
+  if (!token) {
     return <Navigate to="/login" replace />;
   }
 
@@ -41,15 +41,6 @@ function ProtectedRoute({ children, allowedRole }) {
 }
 
 function App() {
-
-  const ADMIN_USER = {
-    fullName: "Sahil Aglawe",
-    username: "admin123",
-    email: "admin@gmail.com",
-    password: "admin123",
-  };
-  const admin = JSON.stringify(ADMIN_USER);
-  localStorage.setItem("admin", admin);
 
   return (
     <>

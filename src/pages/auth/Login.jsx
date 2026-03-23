@@ -52,12 +52,13 @@ const Login = () => {
       // Successful login
       console.log("Login successful for user:", user);
 
-      // Save login status and user data
+      // Save login status, user data, and JWT token
       localStorage.setItem("isLoggedIn", "true");
       localStorage.setItem("role", user.role);
       localStorage.setItem("userId", user.id);
       localStorage.setItem("userName", user.name || "");
       localStorage.setItem("userEmail", user.email);
+      localStorage.setItem("token", user.token);          // ← JWT token
 
       // Store full user data if needed
       localStorage.setItem("userData", JSON.stringify(user));
