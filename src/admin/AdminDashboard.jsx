@@ -81,9 +81,11 @@ const AddUserModal = ({ show, onClose, activeTab, newUser, setNewUser, editingUs
                         onChange={e => setNewUser({ ...newUser, phone: e.target.value })} required />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold">Password <span className="text-danger">*</span></label>
+                      <label className="form-label small fw-semibold">Password {!editingUser && <span className="text-danger">*</span>}</label>
                       <input type="password" className="form-control" value={newUser.password}
-                        onChange={e => setNewUser({ ...newUser, password: e.target.value })} required />
+                        onChange={e => setNewUser({ ...newUser, password: e.target.value })}
+                        placeholder={editingUser ? "Leave blank to keep current" : "Enter password"}
+                        required={!editingUser} />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Joining Date</label>
@@ -361,7 +363,7 @@ const AdminDashboard = () => {
     const newEntry = {
       name: newUser.name, email: newUser.email, phone: newUser.phone,
       password: newUser.password, joiningDate: newUser.joiningDate || null,
-      salary: newUser.salary || null,
+      salary: newUser.salary ? parseFloat(newUser.salary) : null,
       empstatus: newUser.status === "Inactive" ? "INACTIVE" : "ACTIVE"
     };
 
@@ -389,8 +391,11 @@ const AdminDashboard = () => {
   // ─── Edit User ─────────────────────────────────────────────────
   const handleEdit = (user) => {
     setEditingUser(user);
+    // Set activeTab to the user's role (lowercase) so the modal title & endpoint are correct
+    const roleTab = user.role.toLowerCase(); // TRAINER->trainer, ANALYST->analyst, COUNSELOR->counselor
+    setActiveTab(roleTab);
     setNewUser({
-      name: user.name, email: user.email, phone: user.phone, password: user.password,
+      name: user.name, email: user.email, phone: user.phone, password: user.password || "",
       status: user.status, joiningDate: user.joiningDate || "", salary: user.salary || "",
       expertise: user.expertise || "", batchCapacity: user.batchCapacity || "",
       tools: user.tools || "", analysisType: user.analysisType || "",
@@ -406,15 +411,22 @@ const AdminDashboard = () => {
     if (!endpoint) { showToast("Cannot update this user type", "error"); return; }
 
     const updatedEntry = {
-      name: newUser.name, email: newUser.email, phone: newUser.phone,
-      password: newUser.password, joiningDate: newUser.joiningDate || null,
-      salary: newUser.salary || null,
+      name: newUser.name,
+      email: newUser.email,
+      phone: newUser.phone,
+      // Only send password if admin explicitly changed it
+      password: newUser.password || editingUser.password,
+      joiningDate: newUser.joiningDate || null,
+      salary: newUser.salary ? parseFloat(newUser.salary) : null,
       empstatus: newUser.status === "Inactive" ? "INACTIVE" : "ACTIVE"
     };
 
     axios.put(`${API_URL}${endpoint}/${editingUser.id}`, updatedEntry)
       .then(() => { fetchUsers(); setEditingUser(null); resetForm(); setShowAddModal(false); showToast("User updated successfully!"); })
-      .catch(error => { console.error("Error updating user:", error); showToast("Failed to update user", "error"); });
+      .catch(error => {
+        console.error("Error updating user:", error?.response?.data || error);
+        showToast("Failed to update user: " + (error?.response?.data?.message || error.message || "Unknown error"), "error");
+      });
   };
 
   const resetForm = () => {
