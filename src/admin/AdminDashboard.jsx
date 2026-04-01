@@ -414,8 +414,8 @@ const AdminDashboard = () => {
       name: newUser.name,
       email: newUser.email,
       phone: newUser.phone,
-      // Only send password if admin explicitly changed it
-      password: newUser.password || editingUser.password,
+      // Only send password if admin explicitly typed a new one
+      password: newUser.password && newUser.password.trim() !== "" ? newUser.password : null,
       joiningDate: newUser.joiningDate || null,
       salary: newUser.salary ? parseFloat(newUser.salary) : null,
       empstatus: newUser.status === "Inactive" ? "INACTIVE" : "ACTIVE"
