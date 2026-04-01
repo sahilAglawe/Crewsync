@@ -4,7 +4,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useEffect } from 'react';
 import Home from './pages/Home.jsx'
-import Login from './pages/auth/login.jsx'
+import Login from "./pages/auth/Login.jsx";
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import 'bootstrap/dist/css/bootstrap.min.css';
 import AdminDashboard from './admin/AdminDashboard.jsx';
